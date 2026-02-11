@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Research Draft Builder</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    body { background: #0b1220; }
+    .app-shell { max-width: 1100px; }
+    .card { border: 0; border-radius: 16px; }
+    .muted { color: rgba(255,255,255,.72); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .step-pill { font-size: .85rem; border-radius: 999px; padding: .25rem .6rem; }
+    .prewrap { white-space: pre-wrap; }
+    #finalReport { background:#ffffff; border-radius: 12px; padding: 16px; }
+
+    /* Card principal – tema escuro integrado */
+    .card.input-card {
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+    .card.input-card .card-body { color: #e2e8f0; }
+    .card.input-card .form-label { color: #f1f5f9; }
+    .card.input-card .form-control,
+    .card.input-card .form-select {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #f1f5f9;
+    }
+    .card.input-card .form-control::placeholder {
+      color: rgba(148, 163, 184, 0.6);
+    }
+    .card.input-card .form-control:focus,
+    .card.input-card .form-select:focus {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #f1f5f9;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .card.input-card .form-check-input {
+      background-color: rgba(15, 23, 42, 0.8);
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+    .card.input-card .form-check-input:checked {
+      background-color: #6366f1;
+      border-color: #6366f1;
+    }
+    .card.input-card .form-check-label { color: #e2e8f0; }
+    .card.input-card .form-text { color: rgba(148, 163, 184, 0.85); }
+    .card.input-card #taskMeta { color: rgba(226, 232, 240, 0.8); }
+    .card.input-card .btn-primary {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      border: 0;
+      font-weight: 600;
+      padding: 0.6rem 1rem;
+    }
+    .card.input-card .btn-primary:hover {
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .card.input-card .btn-primary:disabled {
+      opacity: 0.6;
+      transform: none;
+    }
+    .card.input-card .col-lg-5 {
+      border-left: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    @media (max-width: 991px) {
+      .card.input-card .col-lg-5 {
+        border-left: none;
+        border-top: 1px solid rgba(148, 163, 184, 0.15);
+        padding-top: 1rem;
+      }
+    }
+
+    /* Dropdowns above prompt */
+    .dropdown-above .dropdown-toggle {
+      width: 100%;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #f1f5f9;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+    }
+    .dropdown-above .dropdown-toggle::after { margin-left: auto; }
+    .dropdown-above .dropdown-toggle:hover,
+    .dropdown-above .dropdown-toggle:focus {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #f1f5f9;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .dropdown-above .dropdown-menu {
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      padding: 0.5rem;
+    }
+    .dropdown-above .dropdown-item {
+      color: #e2e8f0;
+    }
+    .dropdown-above .dropdown-item:hover {
+      background: rgba(99, 102, 241, 0.2);
+      color: #f1f5f9;
+    }
+    .dropdown-above .dropdown-item.checkbox-item {
+      white-space: nowrap;
+    }
+    .dropdown-above .form-check-label { cursor: pointer; }
+    .dropdown-above .dropdown-header {
+      color: rgba(148, 163, 184, 0.9);
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+
+<body class="py-4">
+  <div class="container app-shell">
+    <div class="mb-4">
+      <h2 class="text-white mb-1">🧠 Research Draft Builder</h2>
+      <div class="muted">Pick sources, choose how many items (5/10/15), write your prompt, and generate a draft + final report.</div>
+    </div>
+
+    <div class="card shadow-sm mb-4 input-card">
+      <div class="card-body p-4">
+        <!-- Sources & Articles Quantity side by side, titles inside dropdown -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6 dropdown-above">
+            <div class="dropdown">
+              <button class="dropdown-toggle btn w-100" type="button" id="sourcesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <span id="sourcesDropdownLabel">Tavily, Wikipedia, arXiv</span>
+              </button>
+              <ul class="dropdown-menu w-100" aria-labelledby="sourcesDropdown" data-bs-auto-close="outside">
+                <li><h6 class="dropdown-header text-uppercase">Sources</h6></li>
+                <li class="dropdown-item checkbox-item">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="tavily" id="srcTavily" checked>
+                    <label class="form-check-label" for="srcTavily">Tavily (web search)</label>
+                  </div>
+                </li>
+                <li class="dropdown-item checkbox-item">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="wikipedia" id="srcWiki" checked>
+                    <label class="form-check-label" for="srcWiki">Wikipedia (background)</label>
+                  </div>
+                </li>
+                <li class="dropdown-item checkbox-item">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="arxiv" id="srcArxiv" checked>
+                    <label class="form-check-label" for="srcArxiv">arXiv (papers)</label>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-md-6 dropdown-above">
+            <div class="dropdown">
+              <button class="dropdown-toggle btn w-100" type="button" id="nArticlesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <span id="nArticlesDropdownLabel">10</span>
+              </button>
+              <ul class="dropdown-menu w-100" aria-labelledby="nArticlesDropdown">
+                <li><h6 class="dropdown-header text-uppercase">Articles Quantity</h6></li>
+                <li><a class="dropdown-item n-opt" href="#" data-value="5">5</a></li>
+                <li><a class="dropdown-item n-opt" href="#" data-value="10">10</a></li>
+                <li><a class="dropdown-item n-opt" href="#" data-value="15">15</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="nArticles" value="10">
+
+        <!-- Prompt (below both dropdowns) -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Prompt</label>
+          <textarea id="promptInput" class="form-control" rows="7"
+            placeholder="Describe your research topic. Add constraints, context, and what you want in the draft..."></textarea>
+          <div class="form-text">Tip: add 3–5 constraints (scope, years, domain, what to compare, desired structure).</div>
+        </div>
+
+        <button id="submitBtn" class="btn btn-primary w-100" onclick="submitRun()">
+          Generate
+        </button>
+        <div id="taskMeta" class="mt-3 small muted"></div>
+      </div>
+    </div>
+
+    <div id="progressArea" class="mb-4"></div>
+    <div id="finalArea" class="mb-5"></div>
+  </div>
+
+<script>
+let currentTaskId = null;
+let pollInterval = null;
+let finalReportMarkdown = "";
+
+function disableUI(disabled){
+  document.getElementById('submitBtn').disabled = disabled;
+  document.getElementById('promptInput').disabled = disabled;
+  document.getElementById('srcTavily').disabled = disabled;
+  document.getElementById('srcWiki').disabled = disabled;
+  document.getElementById('srcArxiv').disabled = disabled;
+  document.getElementById('nArticles').disabled = disabled;
+  document.getElementById('sourcesDropdown').disabled = disabled;
+  document.getElementById('nArticlesDropdown').disabled = disabled;
+}
+
+function updateSourcesLabel(){
+  const names = [];
+  if (document.getElementById('srcTavily').checked) names.push('Tavily');
+  if (document.getElementById('srcWiki').checked) names.push('Wikipedia');
+  if (document.getElementById('srcArxiv').checked) names.push('arXiv');
+  document.getElementById('sourcesDropdownLabel').textContent = names.length ? names.join(', ') : 'Select sources…';
+}
+
+function getSelectedSources(){
+  const sources = [];
+  if (document.getElementById('srcTavily').checked) sources.push("tavily");
+  if (document.getElementById('srcWiki').checked) sources.push("wikipedia");
+  if (document.getElementById('srcArxiv').checked) sources.push("arxiv");
+  return sources;
+}
+
+function pill(status){
+  if (status === "done") return `<span class="step-pill bg-success-subtle text-success-emphasis">done</span>`;
+  if (status === "running") return `<span class="step-pill bg-warning-subtle text-warning-emphasis">running</span>`;
+  if (status === "error") return `<span class="step-pill bg-danger-subtle text-danger-emphasis">error</span>`;
+  return `<span class="step-pill bg-secondary-subtle text-secondary-emphasis">pending</span>`;
+}
+
+function submitRun(){
+  const prompt = document.getElementById('promptInput').value.trim();
+  const sources = getSelectedSources();
+  const n_articles = parseInt(document.getElementById('nArticles').value, 10);
+
+  if (!prompt) return;
+  if (!sources.length) {
+    alert("Select at least one source.");
+    return;
+  }
+
+  disableUI(true);
+  document.getElementById('progressArea').innerHTML = "";
+  document.getElementById('finalArea').innerHTML = "";
+  document.getElementById('taskMeta').innerHTML = `
+    <div>Submitting…</div>
+    <div class="mono">sources=${sources.join(", ")} | n_articles=${n_articles}</div>
+  `;
+
+  fetch('/generate_report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, sources, n_articles })
+  })
+  .then(res => res.json())
+  .then(data => {
+    currentTaskId = data.task_id;
+    document.getElementById('taskMeta').innerHTML = `
+      <div>Task: <span class="mono">${currentTaskId}</span></div>
+      <div class="muted">Polling progress…</div>
+    `;
+    if (pollInterval) clearInterval(pollInterval);
+    pollInterval = setInterval(fetchProgress, 1500);
+  })
+  .catch(err => {
+    console.error(err);
+    disableUI(false);
+    document.getElementById('taskMeta').innerHTML = `<div class="text-danger">Submit failed.</div>`;
+  });
+}
+
+function fetchProgress(){
+  if (!currentTaskId) return;
+
+  fetch(`/task_progress/${currentTaskId}`)
+    .then(res => res.json())
+    .then(data => {
+      const steps = data.steps || [];
+      if (!steps.length) return;
+
+      const html = steps.map((s, i) => {
+        const sub = (s.substeps || []).map((ss, j) => `
+          <details class="mt-2">
+            <summary class="fw-semibold">↳ ${ss.title}</summary>
+            <div class="bg-light rounded p-2 mt-2 prewrap">${marked.parse(ss.content || "")}</div>
+          </details>
+        `).join("");
+
+        return `
+          <div class="card shadow-sm mb-2">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="fw-semibold">${i+1}. ${s.title}</div>
+                ${pill(s.status)}
+              </div>
+              <div class="text-secondary mt-1">${s.description || ""}</div>
+              ${sub}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById('progressArea').innerHTML = html;
+
+      // also check final status
+      fetch(`/task_status/${currentTaskId}`)
+        .then(r => r.json())
+        .then(task => {
+          if (task.status === "done") {
+            clearInterval(pollInterval);
+            disableUI(false);
+
+            const md = task.result?.html_report || "";
+            finalReportMarkdown = md;
+
+            document.getElementById('finalArea').innerHTML = `
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h4 class="text-white mb-0">📄 Final Report</h4>
+                <div>
+                  <button class="btn btn-outline-light btn-sm me-2" onclick="downloadMarkdown()">Download .md</button>
+                  <button class="btn btn-outline-light btn-sm" onclick="downloadHTML()">Download .html</button>
+                </div>
+              </div>
+              <div id="finalReport">${marked.parse(md)}</div>
+            `;
+          }
+          if (task.status === "error") {
+            clearInterval(pollInterval);
+            disableUI(false);
+            document.getElementById('finalArea').innerHTML = `
+              <div class="alert alert-danger">Task failed. Check progress steps for the error details.</div>
+            `;
+          }
+        });
+    })
+    .catch(() => {
+      // silent
+    });
+}
+
+function downloadMarkdown(){
+  const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `final_report_${currentTaskId}.md`;
+  link.click();
+}
+
+function downloadHTML(){
+  const htmlContent = marked.parse(finalReportMarkdown);
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `final_report_${currentTaskId}.html`;
+  link.click();
+}
+
+// Sources dropdown: update label when checkboxes change
+document.getElementById('srcTavily').addEventListener('change', updateSourcesLabel);
+document.getElementById('srcWiki').addEventListener('change', updateSourcesLabel);
+document.getElementById('srcArxiv').addEventListener('change', updateSourcesLabel);
+
+// How many items: on option click set value and close dropdown
+document.querySelectorAll('.n-opt').forEach(function(el){
+  el.addEventListener('click', function(e){
+    e.preventDefault();
+    const v = el.getAttribute('data-value');
+    document.getElementById('nArticles').value = v;
+    document.getElementById('nArticlesDropdownLabel').textContent = v;
+    bootstrap.Dropdown.getInstance(document.getElementById('nArticlesDropdown'))?.hide();
+  });
+});
+</script>
+</body>
+</html>

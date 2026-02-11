@@ -1,0 +1,23 @@
+# Ver imagens (os pacotes estão aqui)
+docker images
+
+# Ver containers (temporários)
+docker ps -a
+
+# Parar todos os containers
+docker stop $(docker ps -aq) 2>/dev/null || true
+
+# Remover containers parados
+docker rm $(docker ps -aq) 2>/dev/null || true
+
+# Limpar sistema Docker (cuidado: remove tudo que não está em uso)
+docker system prune -a -f
+
+# navega até a pasta do projeto
+cd /mnt/c/Users/Leal/agentic-ai-public
+
+# builda a imagem
+docker build -t fastapi-postgres-service .
+
+# roda o container
+ docker run --rm -it -p 8000:8000 -p 5432:5432 --name fpsvc --env-file .env   -v "$(pwd):/app"   fastapi-postgres-service
