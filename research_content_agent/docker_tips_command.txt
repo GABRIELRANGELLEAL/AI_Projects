@@ -4,6 +4,9 @@ docker images
 # Ver containers (temporários)
 docker ps -a
 
+# navega até a pasta do projeto
+cd /mnt/c/Users/Leal/Projects/research_content_agent
+
 # Parar todos os containers
 docker stop $(docker ps -aq) 2>/dev/null || true
 
@@ -12,9 +15,6 @@ docker rm $(docker ps -aq) 2>/dev/null || true
 
 # Limpar sistema Docker (cuidado: remove tudo que não está em uso)
 docker system prune -a -f
-
-# navega até a pasta do projeto
-cd /mnt/c/Users/Leal/agentic-ai-public
 
 # builda a imagem
 docker build -t fastapi-postgres-service .

@@ -36,4 +36,4 @@ export DATABASE_URL="${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PA
 echo "🔗 DATABASE_URL=${DATABASE_URL}"
 
 # Launch FastAPI
-exec uvicorn main_2:app --host 0.0.0.0 --port 8000
+exec uvicorn main:app --host 0.0.0.0 --port 8000
