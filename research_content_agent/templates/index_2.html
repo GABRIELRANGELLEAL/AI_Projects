@@ -11,13 +11,25 @@
 
   <style>
     body { background: #0b1220; }
-    .app-shell { max-width: 1100px; }
+    .app-shell { max-width: 1200px; }
     .card { border: 0; border-radius: 16px; }
     .muted { color: rgba(255,255,255,.72); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .step-pill { font-size: .85rem; border-radius: 999px; padding: .25rem .6rem; }
+    .step-pill { font-size: .75rem; border-radius: 999px; padding: .2rem .55rem; }
     .prewrap { white-space: pre-wrap; }
-    #finalReport { background:#ffffff; border-radius: 12px; padding: 16px; }
+    #articleContainer { background:#ffffff; border-radius: 12px; padding: 16px; min-height: 200px; }
+
+    /* Layout */
+    .layout-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.3fr);
+      gap: 1.5rem;
+    }
+    @media (max-width: 991px) {
+      .layout-main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
 
     /* Card principal – tema escuro integrado */
     .card.input-card {
@@ -69,18 +81,8 @@
       opacity: 0.6;
       transform: none;
     }
-    .card.input-card .col-lg-5 {
-      border-left: 1px solid rgba(148, 163, 184, 0.15);
-    }
-    @media (max-width: 991px) {
-      .card.input-card .col-lg-5 {
-        border-left: none;
-        border-top: 1px solid rgba(148, 163, 184, 0.15);
-        padding-top: 1rem;
-      }
-    }
 
-    /* Dropdowns above prompt */
+    /* Dropdowns acima do prompt */
     .dropdown-above .dropdown-toggle {
       width: 100%;
       text-align: left;
@@ -122,6 +124,46 @@
       color: rgba(148, 163, 184, 0.9);
       font-size: 0.75rem;
     }
+
+    /* Right side: article + chat */
+    .card.article-card {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      color: #e2e8f0;
+      max-height: calc(100vh - 140px);
+      display: flex;
+      flex-direction: column;
+    }
+    .article-scroll {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .chat-area {
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+    }
+    .chat-messages {
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    .chat-bubble {
+      border-radius: 14px;
+      padding: 0.45rem 0.7rem;
+      margin-bottom: 0.35rem;
+      max-width: 90%;
+    }
+    .chat-user {
+      background: rgba(96, 165, 250, 0.16);
+      align-self: flex-end;
+    }
+    .chat-assistant {
+      background: rgba(30, 64, 175, 0.4);
+      align-self: flex-start;
+    }
   </style>
 </head>
 
@@ -129,74 +171,112 @@
   <div class="container app-shell">
     <div class="mb-4">
       <h2 class="text-white mb-1">🧠 Research Draft Builder</h2>
-      <div class="muted">Pick sources, choose how many items (5/10/15), write your prompt, and generate a draft + final report.</div>
+      <div class="muted">Configure a pesquisa à esquerda. O artigo final aparece à direita com um chat de edição logo abaixo.</div>
     </div>
 
-    <div class="card shadow-sm mb-4 input-card">
-      <div class="card-body p-4">
-        <!-- Sources & Articles Quantity side by side, titles inside dropdown -->
-        <div class="row g-3 mb-3">
-          <div class="col-md-6 dropdown-above">
-            <div class="dropdown">
-              <button class="dropdown-toggle btn w-100" type="button" id="sourcesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <span id="sourcesDropdownLabel">Tavily, Wikipedia, arXiv</span>
-              </button>
-              <ul class="dropdown-menu w-100" aria-labelledby="sourcesDropdown" data-bs-auto-close="outside">
-                <li><h6 class="dropdown-header text-uppercase">Sources</h6></li>
-                <li class="dropdown-item checkbox-item">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="tavily" id="srcTavily" checked>
-                    <label class="form-check-label" for="srcTavily">Tavily (web search)</label>
-                  </div>
-                </li>
-                <li class="dropdown-item checkbox-item">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="wikipedia" id="srcWiki" checked>
-                    <label class="form-check-label" for="srcWiki">Wikipedia (background)</label>
-                  </div>
-                </li>
-                <li class="dropdown-item checkbox-item">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="arxiv" id="srcArxiv" checked>
-                    <label class="form-check-label" for="srcArxiv">arXiv (papers)</label>
-                  </div>
-                </li>
-              </ul>
+    <div class="layout-main">
+      <!-- Left: configuration and task meta -->
+      <div>
+        <div class="card shadow-sm mb-4 input-card">
+          <div class="card-body p-4">
+            <!-- Sources & Articles Quantity side by side, titles inside dropdown -->
+            <div class="row g-3 mb-3">
+              <div class="col-md-6 dropdown-above">
+                <div class="dropdown">
+                  <button class="dropdown-toggle btn w-100" type="button" id="sourcesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="sourcesDropdownLabel">Tavily, Wikipedia, arXiv</span>
+                  </button>
+                  <ul class="dropdown-menu w-100" aria-labelledby="sourcesDropdown" data-bs-auto-close="outside">
+                    <li><h6 class="dropdown-header text-uppercase">Sources</h6></li>
+                    <li class="dropdown-item checkbox-item">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="tavily" id="srcTavily" checked>
+                        <label class="form-check-label" for="srcTavily">Tavily (web search)</label>
+                      </div>
+                    </li>
+                    <li class="dropdown-item checkbox-item">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="wikipedia" id="srcWiki" checked>
+                        <label class="form-check-label" for="srcWiki">Wikipedia (background)</label>
+                      </div>
+                    </li>
+                    <li class="dropdown-item checkbox-item">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="arxiv" id="srcArxiv" checked>
+                        <label class="form-check-label" for="srcArxiv">arXiv (papers)</label>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div class="col-md-6 dropdown-above">
+                <div class="dropdown">
+                  <button class="dropdown-toggle btn w-100" type="button" id="nArticlesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="nArticlesDropdownLabel">10</span>
+                  </button>
+                  <ul class="dropdown-menu w-100" aria-labelledby="nArticlesDropdown">
+                    <li><h6 class="dropdown-header text-uppercase">Articles Quantity</h6></li>
+                    <li><a class="dropdown-item n-opt" href="#" data-value="5">5</a></li>
+                    <li><a class="dropdown-item n-opt" href="#" data-value="10">10</a></li>
+                    <li><a class="dropdown-item n-opt" href="#" data-value="15">15</a></li>
+                  </ul>
+                </div>
+              </div>
             </div>
+            <input type="hidden" id="nArticles" value="10">
+
+            <!-- Prompt (below both dropdowns) -->
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Prompt</label>
+              <textarea id="promptInput" class="form-control" rows="7"
+                placeholder="Descreva o tópico de pesquisa, contexto, restrições e o tipo de artigo que você quer gerar..."></textarea>
+              <div class="form-text">Sugestão: detalhe escopo, recorte temporal, público, aplicações e estrutura desejada.</div>
+            </div>
+
+            <button id="submitBtn" class="btn btn-primary w-100" onclick="submitRun()">
+              Generate
+            </button>
+            <div id="taskMeta" class="mt-3 small muted"></div>
           </div>
-          <div class="col-md-6 dropdown-above">
-            <div class="dropdown">
-              <button class="dropdown-toggle btn w-100" type="button" id="nArticlesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <span id="nArticlesDropdownLabel">10</span>
-              </button>
-              <ul class="dropdown-menu w-100" aria-labelledby="nArticlesDropdown">
-                <li><h6 class="dropdown-header text-uppercase">Articles Quantity</h6></li>
-                <li><a class="dropdown-item n-opt" href="#" data-value="5">5</a></li>
-                <li><a class="dropdown-item n-opt" href="#" data-value="10">10</a></li>
-                <li><a class="dropdown-item n-opt" href="#" data-value="15">15</a></li>
-              </ul>
+        </div>
+
+        <div id="stepsArea" class="mb-4"></div>
+      </div>
+
+      <!-- Right: article + chat -->
+      <div>
+        <div class="card article-card">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <h5 class="mb-0 text-white">📄 Artigo</h5>
+                <div class="small muted" id="articleSubtitle">O artigo aparecerá aqui quando o pipeline terminar.</div>
+              </div>
+              <div>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="downloadMarkdown()" id="btnDownloadMd" disabled>Download .md</button>
+                <button class="btn btn-outline-light btn-sm" onclick="downloadHTML()" id="btnDownloadHtml" disabled>Download .html</button>
+              </div>
+            </div>
+
+            <div class="article-scroll mb-2">
+              <div id="articleContainer"></div>
+            </div>
+
+            <div class="chat-area">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small text-white-50">Chat para editar o artigo</span>
+                <span class="small text-white-50" id="chatHint">Disponível após o artigo ficar pronto.</span>
+              </div>
+              <div id="chatMessages" class="chat-messages d-flex flex-column mb-2"></div>
+              <div class="input-group input-group-sm">
+                <input id="chatInput" type="text" class="form-control" placeholder="Peça alterações no artigo (ex.: resuma a seção 2, adicione exemplos práticos, etc.)" disabled>
+                <button class="btn btn-primary" type="button" id="chatSendBtn" onclick="sendChat()" disabled>Enviar</button>
+              </div>
             </div>
           </div>
         </div>
-        <input type="hidden" id="nArticles" value="10">
-
-        <!-- Prompt (below both dropdowns) -->
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Prompt</label>
-          <textarea id="promptInput" class="form-control" rows="7"
-            placeholder="Describe your research topic. Add constraints, context, and what you want in the draft..."></textarea>
-          <div class="form-text">Tip: add 3–5 constraints (scope, years, domain, what to compare, desired structure).</div>
-        </div>
-
-        <button id="submitBtn" class="btn btn-primary w-100" onclick="submitRun()">
-          Generate
-        </button>
-        <div id="taskMeta" class="mt-3 small muted"></div>
       </div>
     </div>
-
-    <div id="progressArea" class="mb-4"></div>
-    <div id="finalArea" class="mb-5"></div>
   </div>
 
 <script>
@@ -213,6 +293,14 @@ function disableUI(disabled){
   document.getElementById('nArticles').disabled = disabled;
   document.getElementById('sourcesDropdown').disabled = disabled;
   document.getElementById('nArticlesDropdown').disabled = disabled;
+}
+
+function setChatEnabled(enabled) {
+  document.getElementById('chatInput').disabled = !enabled;
+  document.getElementById('chatSendBtn').disabled = !enabled;
+  document.getElementById('chatHint').textContent = enabled
+    ? 'Envie instruções para refinar o artigo.'
+    : 'Disponível após o artigo ficar pronto.';
 }
 
 function updateSourcesLabel(){
@@ -238,6 +326,61 @@ function pill(status){
   return `<span class="step-pill bg-secondary-subtle text-secondary-emphasis">pending</span>`;
 }
 
+function renderSteps(steps){
+  if (!steps || !steps.length) {
+    document.getElementById('stepsArea').innerHTML = "";
+    return;
+  }
+  const html = steps.map((s, i) => `
+    <div class="card shadow-sm mb-2">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+          <div class="fw-semibold">${i+1}. ${s.name}</div>
+          ${pill(s.status)}
+        </div>
+        <div class="text-secondary mt-1 small">${s.detail || ""}</div>
+      </div>
+    </div>
+  `).join("");
+  document.getElementById('stepsArea').innerHTML = html;
+}
+
+function renderArticle(md){
+  const articleContainer = document.getElementById('articleContainer');
+  if (!md) {
+    articleContainer.innerHTML = "";
+    document.getElementById('articleSubtitle').textContent = "O artigo aparecerá aqui quando o pipeline terminar.";
+    document.getElementById('btnDownloadMd').disabled = true;
+    document.getElementById('btnDownloadHtml').disabled = true;
+    setChatEnabled(false);
+    return;
+  }
+  finalReportMarkdown = md;
+  articleContainer.innerHTML = marked.parse(md);
+  document.getElementById('articleSubtitle').textContent = "Artigo pronto. Use o chat abaixo para sugerir alterações.";
+  document.getElementById('btnDownloadMd').disabled = false;
+  document.getElementById('btnDownloadHtml').disabled = false;
+  setChatEnabled(true);
+}
+
+function renderChat(chat){
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = "";
+  if (!chat || !chat.length) return;
+  chat.forEach(msg => {
+    const div = document.createElement('div');
+    div.classList.add('chat-bubble');
+    if (msg.role === 'user') {
+      div.classList.add('chat-user', 'ms-auto');
+    } else {
+      div.classList.add('chat-assistant', 'me-auto');
+    }
+    div.textContent = msg.message;
+    container.appendChild(div);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
 function submitRun(){
   const prompt = document.getElementById('promptInput').value.trim();
   const sources = getSelectedSources();
@@ -250,8 +393,10 @@ function submitRun(){
   }
 
   disableUI(true);
-  document.getElementById('progressArea').innerHTML = "";
-  document.getElementById('finalArea').innerHTML = "";
+  setChatEnabled(false);
+  document.getElementById('stepsArea').innerHTML = "";
+  document.getElementById('articleContainer').innerHTML = "";
+  document.getElementById('chatMessages').innerHTML = "";
   document.getElementById('taskMeta').innerHTML = `
     <div>Submitting…</div>
     <div class="mono">sources=${sources.join(", ")} | n_articles=${n_articles}</div>
@@ -267,10 +412,10 @@ function submitRun(){
     currentTaskId = data.task_id;
     document.getElementById('taskMeta').innerHTML = `
       <div>Task: <span class="mono">${currentTaskId}</span></div>
-      <div class="muted">Polling progress…</div>
+      <div class="muted">Executando pipeline (extract → research → writer → editor)...</div>
     `;
     if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(fetchProgress, 1500);
+    pollInterval = setInterval(fetchTaskState, 1500);
   })
   .catch(err => {
     console.error(err);
@@ -279,89 +424,80 @@ function submitRun(){
   });
 }
 
-function fetchProgress(){
+function fetchTaskState(){
   if (!currentTaskId) return;
 
-  fetch(`/task_progress/${currentTaskId}`)
+  fetch(`/tasks/${currentTaskId}`)
     .then(res => res.json())
     .then(data => {
-      const steps = data.steps || [];
-      if (!steps.length) return;
+      const steps = data.result?.steps || [];
+      const articleMd = data.result?.article_markdown || null;
+      const chat = data.result?.chat || [];
 
-      const html = steps.map((s, i) => {
-        const sub = (s.substeps || []).map((ss, j) => `
-          <details class="mt-2">
-            <summary class="fw-semibold">↳ ${ss.title}</summary>
-            <div class="bg-light rounded p-2 mt-2 prewrap">${marked.parse(ss.content || "")}</div>
-          </details>
-        `).join("");
+      renderSteps(steps);
+      renderArticle(articleMd);
+      renderChat(chat);
 
-        return `
-          <div class="card shadow-sm mb-2">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center gap-2">
-                <div class="fw-semibold">${i+1}. ${s.title}</div>
-                ${pill(s.status)}
-              </div>
-              <div class="text-secondary mt-1">${s.description || ""}</div>
-              ${sub}
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      document.getElementById('progressArea').innerHTML = html;
-
-      // also check final status
-      fetch(`/task_status/${currentTaskId}`)
-        .then(r => r.json())
-        .then(task => {
-          if (task.status === "done") {
-            clearInterval(pollInterval);
-            disableUI(false);
-
-            const md = task.result?.html_report || "";
-            finalReportMarkdown = md;
-
-            document.getElementById('finalArea').innerHTML = `
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <h4 class="text-white mb-0">📄 Final Report</h4>
-                <div>
-                  <button class="btn btn-outline-light btn-sm me-2" onclick="downloadMarkdown()">Download .md</button>
-                  <button class="btn btn-outline-light btn-sm" onclick="downloadHTML()">Download .html</button>
-                </div>
-              </div>
-              <div id="finalReport">${marked.parse(md)}</div>
-            `;
-          }
-          if (task.status === "error") {
-            clearInterval(pollInterval);
-            disableUI(false);
-            document.getElementById('finalArea').innerHTML = `
-              <div class="alert alert-danger">Task failed. Check progress steps for the error details.</div>
-            `;
-          }
-        });
+      if (data.status === "done") {
+        clearInterval(pollInterval);
+        disableUI(false);
+        document.getElementById('taskMeta').innerHTML += `<div class="text-success mt-1">Pipeline concluído.</div>`;
+      }
+      if (data.status === "error") {
+        clearInterval(pollInterval);
+        disableUI(false);
+        document.getElementById('taskMeta').innerHTML += `<div class="text-danger mt-1">Ocorreu um erro no pipeline.</div>`;
+      }
     })
     .catch(() => {
       // silent
     });
 }
 
+function sendChat(){
+  if (!currentTaskId) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+
+  setChatEnabled(false);
+
+  fetch(`/tasks/${currentTaskId}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: text })
+  })
+    .then(res => res.json())
+    .then(data => {
+      renderArticle(data.article_markdown);
+      renderChat(data.chat);
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Falha ao aplicar edição no artigo.");
+    })
+    .finally(() => {
+      setChatEnabled(true);
+    });
+}
+
 function downloadMarkdown(){
+  if (!finalReportMarkdown) return;
   const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `final_report_${currentTaskId}.md`;
+  link.download = `final_report_${currentTaskId || 'article'}.md`;
   link.click();
 }
 
 function downloadHTML(){
+  if (!finalReportMarkdown) return;
   const htmlContent = marked.parse(finalReportMarkdown);
   const blob = new Blob([htmlContent], { type: 'text/html' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `final_report_${currentTaskId}.html`;
+  link.download = `final_report_${currentTaskId || 'article'}.html`;
   link.click();
 }
 

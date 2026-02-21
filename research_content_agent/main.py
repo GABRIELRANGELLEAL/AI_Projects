@@ -1,332 +1,429 @@
-
 import os
 import uuid
 import json
 import threading
 from datetime import datetime
-from typing import Optional, Literal
+from typing import List, Literal
 
-# FastAPI core components
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-# Pydantic → validates request bodies
-from pydantic import BaseModel
-
-# SQLAlchemy → ORM for interacting with Postgres
 from sqlalchemy import create_engine, Column, Text, DateTime, String
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Loads variables from a .env file into environment variables
 from dotenv import load_dotenv
 
-# Internal agent functions (planner + executor)
-from src.planning_agent import planner_agent, executor_agent_step
+import html
 
-import html, textwrap
+# We will reuse your existing agents
+from src.agents import writer_agent, editor_agent, research_agent
+
 
 # ============================================================
-# === Load environment variables (from .env)
+# Env / DB
 # ============================================================
 load_dotenv()
 
-# Get DB connection URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-# Heroku sometimes uses "postgres://" but SQLAlchemy requires "postgresql://"
-if DATABASE_URL.startswith("postgres://"):
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# If DATABASE_URL is missing, stop the application
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL not set")
 
-# ============================================================
-# === SQLAlchemy / Database Setup
-# ============================================================
-
-# Base class all ORM models inherit from
 Base = declarative_base()
-
-# Engine → opens connections to the database
 engine = create_engine(DATABASE_URL, echo=False, future=True)
-
-# SessionLocal → factory used to open DB sessions (transactions)
 SessionLocal = sessionmaker(bind=engine)
 
-# ============================================================
-# === ORM Model: Task
-# ============================================================
-# Represents a single research task stored in the database.
-# Each workflow execution corresponds to one Task row.
+
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(String, primary_key=True, index=True)  # UUID of the task
-    prompt = Column(Text)                              # User-provided input
-    status = Column(String)                            # running / done / error
-    created_at = Column(DateTime, default=datetime.utcnow)  # creation timestamp
-    updated_at = Column(DateTime, default=datetime.utcnow)  # last modified
-    result = Column(Text)                              # final report (JSON blob)
+    id = Column(String, primary_key=True, index=True)
+    prompt = Column(Text)
+    status = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    result = Column(Text)
 
-# ============================================================
-# === Create (or reset) the database schema
-# ============================================================
+    # new: store configuration
+    sources = Column(Text)     # JSON list of strings
+    n_articles = Column(String)
 
-# Drop existing tables (dev only)
+
+# Note: Your previous main.py drops tables on startup (dev only). Keep or remove as you prefer.
 try:
     Base.metadata.drop_all(bind=engine)
 except Exception as e:
     print(f"❌ DB drop failed: {e}")
 
-# Create tables
 try:
     Base.metadata.create_all(bind=engine)
 except Exception as e:
     print(f"❌ DB creation failed: {e}")
 
-# ============================================================
-# === FastAPI Initialization
-# ============================================================
 
-# Create the FastAPI app
+# ============================================================
+# FastAPI app
+# ============================================================
 app = FastAPI()
 
-# Enable CORS so any frontend can call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # allow any domain
-    allow_methods=["*"],    # allow any HTTP method
-    allow_headers=["*"],    # allow any header
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Serve static files (CSS/JS/images) from /static
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Initialize Jinja2 template rendering (for index.html)
 templates = Jinja2Templates(directory="templates")
 
-# ============================================================
-# === In-Memory progress tracking (not stored in DB)
-# ============================================================
-# Stores current progress of each task_id:
-# { task_id: { "steps": [ ... ] } }
-task_progress = {}
 
 # ============================================================
-# === Pydantic model for API request validation
+# Request model (includes sources + article count)
 # ============================================================
-# Used by /generate_report to enforce JSON schema
-class PromptRequest(BaseModel):
-    prompt: str
+AllowedSource = Literal["tavily", "wikipedia", "arxiv"]
+AllowedN = Literal[5, 10, 15]
 
-# ============================================================
-# === Health Check Endpoint
-# ============================================================
-# Simple ping endpoint to confirm the API is running
+
+class ResearchRequest(BaseModel):
+    prompt: str = Field(..., min_length=3)
+    sources: List[AllowedSource] = Field(..., min_items=1)
+    n_articles: AllowedN
+
+
 @app.get("/api", response_class=JSONResponse)
 def health_check(request: Request):
     return {"status": "ok"}
-    
-# ============================================================
-# === Root Endpoint (UI)
-# ============================================================
+
+
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request):
-    """Serve the main UI page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index_v2.html", {"request": request})
 
-# ============================================================
-# === Generate Report Endpoint
-# ============================================================
+
 @app.post("/generate_report")
-def generate_report(req: PromptRequest):
+def generate_report(req: ResearchRequest):
     """
-    Entry point to start a new research/report generation workflow.
+    Entry point for a new end-to-end workflow.
+    Creates a root Task row and kicks off the background pipeline:
+    1) extracting informations
+    2) research agent
+    3) write agent
+    4) editor agent
 
-    This endpoint:
-    1. Creates a new task record in the database
-    2. Generates a high-level execution plan using the planner agent
-    3. Initializes in-memory progress tracking
-    4. Starts the agent workflow asynchronously in a background thread
-    5. Immediately returns a task_id to the client
+    All step progress + final article are stored in Task.result (JSON).
     """
-
-    # 1. Create a unique identifier for this task execution
     task_id = str(uuid.uuid4())
 
-    # 2. Persist the task metadata in the database
-    #    (status starts as "running")
+    # Initial result structure persisted in DB and updated as we go
+    initial_result = {
+        "steps": [
+            {"name": "extracting informations", "status": "pending", "detail": ""},
+            {"name": "research agent", "status": "pending", "detail": ""},
+            {"name": "write agent", "status": "pending", "detail": ""},
+            {"name": "editor agent", "status": "pending", "detail": ""},
+        ],
+        "article_markdown": None,
+        "chat": [],
+    }
+
     db = SessionLocal()
     db.add(
         Task(
             id=task_id,
             prompt=req.prompt,
             status="running",
+            sources=json.dumps(req.sources),
+            n_articles=str(req.n_articles),
+            result=json.dumps(initial_result, ensure_ascii=False),
         )
     )
     db.commit()
     db.close()
 
-    # 3. Initialize in-memory progress tracking
-    #    This is used by /task_progress/{task_id}
-    task_progress[task_id] = {"steps": []}
-    
-
-    # 4. Ask the planner agent to break the prompt into steps
-    #    Returns something like:
-    #    [
-    #      "Research agent: Use Tavily ...",
-    #      "Research agent: Search arXiv ...",
-    #      "Writer agent: Draft report ...",
-    #      ...
-    #    ]
-    initial_plan_steps = planner_agent(req.prompt)
-
-    # 5. Pre-populate progress structure with "pending" steps
-    #    These will be updated live as the workflow runs
-    for step_title in initial_plan_steps:
-        task_progress[task_id]["steps"].append(
-            {
-                "title": step_title,               # Human-readable step name
-                "status": "pending",               # pending | running | done | error
-                "description": "Awaiting execution",
-                "substeps": [],                     # Filled with agent calls / outputs
-            }
-        )
-
-    # 6. Start the agent workflow asynchronously
-    #    - run_agent_workflow executes each step sequentially
-    #    - threading is used so the HTTP request can return immediately
+    # Run the pipeline in the background
     thread = threading.Thread(
-        target=run_agent_workflow,
-        args=(task_id, req.prompt, initial_plan_steps),
+        target=run_pipeline,
+        args=(task_id, req.prompt, req.sources, req.n_articles),
+        daemon=True,
     )
     thread.start()
 
-    # 7. Return immediately with the task_id, the frontend will poll /task_progress and /task_status
     return {"task_id": task_id}
 
 
-
-@app.get("/task_progress/{task_id}")
-def get_task_progress(task_id: str):
-    return task_progress.get(task_id, {"steps": []})
-
-
-@app.get("/task_status/{task_id}")
-def get_task_status(task_id: str):
+@app.get("/tasks/{task_id}")
+def get_task(task_id: str):
+    """
+    Returns the full state of a given task, including:
+    - status
+    - prompt and config (sources, n_articles)
+    - current steps metadata
+    - latest article markdown (if any)
+    - chat history
+    """
     db = SessionLocal()
     task = db.query(Task).filter(Task.id == task_id).first()
     db.close()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    result = json.loads(task.result) if task.result else {}
+
     return {
+        "id": task.id,
         "status": task.status,
-        "result": json.loads(task.result) if task.result else None,
+        "prompt": task.prompt,
+        "config": {
+            "sources": json.loads(task.sources) if task.sources else [],
+            "n_articles": int(task.n_articles) if task.n_articles else None,
+        },
+        "result": result,
     }
 
 
-def format_history(history):
-    return "\n\n".join(
-        f"🔹 {title}\n{desc}\n\n📝 Output:\n{output}" for title, desc, output in history
-    )
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1)
 
 
-def run_agent_workflow(task_id: str, prompt: str, initial_plan_steps: list):
-    steps_data = task_progress[task_id]["steps"]
-    execution_history = []
+@app.post("/tasks/{task_id}/chat")
+def chat_edit(task_id: str, req: ChatRequest):
+    """
+    Simple chat endpoint to request edits on the final article.
+    It:
+    - loads the latest article from Task.result.article_markdown
+    - calls the editor_agent with the user's instructions
+    - stores the updated article + chat history back into Task.result
+    """
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        db.close()
+        raise HTTPException(status_code=404, detail="Task not found")
 
-    def update_step_status(index, status, description="", substep=None):
-        if index < len(steps_data):
-            steps_data[index]["status"] = status
-            if description:
-                steps_data[index]["description"] = description
-            if substep:
-                steps_data[index]["substeps"].append(substep)
-            steps_data[index]["updated_at"] = datetime.utcnow().isoformat()
-
-    try:
-        for i, plan_step_title in enumerate(initial_plan_steps):
-            update_step_status(i, "running", f"Executing: {plan_step_title}")
-
-            actual_step_description, agent_name, output = executor_agent_step(
-                plan_step_title, execution_history, prompt
-            )
-
-            execution_history.append([plan_step_title, actual_step_description, output])
-
-            def esc(s: str) -> str:
-                return html.escape(s or "")
-
-            def nl2br(s: str) -> str:
-                return esc(s).replace("\n", "<br>")
-
-            # ...
-            update_step_status(
-                i,
-                "done",
-                f"Completed: {plan_step_title}",
-                {
-                    "title": f"Called {agent_name}",
-                    "content": f"""
-                        <div style='border:1px solid #ccc; border-radius:8px; padding:10px; margin:8px 0; background:#fff;'>
-                        <div style='font-weight:bold; color:#2563eb;'>📘 User Prompt</div>
-                        <div style='white-space:pre-wrap;'>{prompt}</div>
-
-                        <div style='font-weight:bold; color:#16a34a; margin-top:8px;'>📜 Previous Step</div>
-                        <pre style='white-space:pre-wrap; background:#f9fafb; padding:6px; border-radius:6px; margin:0;'>
-                        {format_history(execution_history[-2:-1])}
-                        </pre>
-
-                        <div style='font-weight:bold; color:#f59e0b; margin-top:8px;'>🧹 Your next task</div>
-                        <div style='white-space:pre-wrap;'>{actual_step_description}</div>
-
-                        <div style='font-weight:bold; color:#10b981; margin-top:8px;'>✅ Output</div>
-                        <!-- ⚠️ NO <pre> AQUÍ -->
-                        <div style='white-space:pre-wrap;'>
-                        {output}
-                        </div>
-                        </div>
-                    """.strip(),
-                },
-            )
-
-        final_report_markdown = (
-            execution_history[-1][-1] if execution_history else "No report generated."
+    if task.status != "done":
+        db.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Task is not completed yet; wait for the article to be ready.",
         )
 
-        result = {"html_report": final_report_markdown, "history": steps_data}
+    result = json.loads(task.result) if task.result else {}
+    article_md = result.get("article_markdown")
+    if not article_md:
+        db.close()
+        raise HTTPException(
+            status_code=400,
+            detail="No article available to edit for this task.",
+        )
 
+    chat_history = result.get("chat", [])
+
+    edit_prompt = f"""
+        You are an academic editor. The user will request modifications to the article below.
+
+        ARTICLE (Markdown):
+        {article_md}
+
+        USER REQUEST:
+        {req.message}
+
+        Apply the requested changes and return the FULL updated article in Markdown.
+    """.strip()
+
+    try:
+        updated_article_md, _ = editor_agent(prompt=edit_prompt)
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Editor agent failed: {e}")
+
+    # Update chat history (very simple: store user messages + acks)
+    now_iso = datetime.utcnow().isoformat()
+    chat_history.append({"role": "user", "message": req.message, "created_at": now_iso})
+    chat_history.append(
+        {
+            "role": "assistant",
+            "message": "Artigo atualizado conforme sua solicitação.",
+            "created_at": now_iso,
+        }
+    )
+
+    result["article_markdown"] = updated_article_md
+    task.result = json.dumps(result, ensure_ascii=False)
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    db.close()
+
+    return {"article_markdown": updated_article_md, "chat": chat_history}
+
+
+# ============================================================
+# Workflow helpers
+# ============================================================
+def _esc(s: str) -> str:
+    return html.escape(s or "")
+
+
+def _update_step_in_db(task_id: str, step_name: str, status: str, detail: str = ""):
+    """
+    Load Task.result JSON, update the matching step, and persist.
+    """
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        db.close()
+        return
+    result = json.loads(task.result) if task.result else {}
+    steps = result.get("steps", [])
+    for step in steps:
+        if step.get("name") == step_name:
+            step["status"] = status
+            if detail:
+                step["detail"] = detail
+            step["updated_at"] = datetime.utcnow().isoformat()
+            break
+    result["steps"] = steps
+    task.result = json.dumps(result, ensure_ascii=False)
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    db.close()
+
+
+def _update_result_field(task_id: str, **fields):
+    """
+    Convenience helper to patch top-level fields in Task.result.
+    """
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        db.close()
+        return
+    result = json.loads(task.result) if task.result else {}
+    result.update(fields)
+    task.result = json.dumps(result, ensure_ascii=False)
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    db.close()
+
+
+def run_pipeline(task_id: str, prompt: str, sources: List[str], n_articles: int):
+    """
+    Fixed, but explicitly named, 4-step pipeline:
+    1) extracting informations
+    2) research agent
+    3) write agent
+    4) editor agent
+
+    Each step updates Task.result and Task.status as it progresses.
+    """
+    try:
+        # STEP 0 — extracting informations
+        _update_step_in_db(
+            task_id,
+            "extracting informations",
+            "running",
+            "Validating request and extracting configuration.",
+        )
+        # Here the 'extraction' is essentially the validated ResearchRequest.
+        extraction_detail = {
+            "prompt": prompt,
+            "sources": sources,
+            "n_articles": n_articles,
+        }
+        _update_step_in_db(
+            task_id,
+            "extracting informations",
+            "done",
+            _esc(json.dumps(extraction_detail, indent=2, ensure_ascii=False)),
+        )
+
+        # STEP 1 — research agent
+        _update_step_in_db(
+            task_id,
+            "research agent",
+            "running",
+            f"Running research agent with sources={sources} and n_articles={n_articles}.",
+        )
+
+        research_text, _ = research_agent(prompt=prompt)
+
+        _update_result_field(task_id, research_text=research_text)
+        
+        _update_step_in_db(
+            task_id,
+            "research agent",
+            "done",
+            "Research agent completed. Findings stored in result.research_text.",
+        )
+
+        # STEP 2 — write agent
+        _update_step_in_db(
+            task_id,
+            "write agent",
+            "running",
+            "Drafting full academic report from research_text.",
+        )
+
+
+        draft_md, _ = writer_agent(prompt=research_text)
+
+        _update_result_field(task_id, draft_markdown=draft_md)
+
+        _update_step_in_db(
+            task_id,
+            "write agent",
+            "done",
+            "Writer agent completed. Draft stored in result.draft_markdown.",
+        )
+
+        # STEP 3 — editor agent
+        _update_step_in_db(
+            task_id,
+            "editor agent",
+            "running",
+            "Refining and polishing the draft into the final article.",
+        )
+
+        final_md, _ = editor_agent(prompt=draft_md)
+
+        _update_result_field(task_id, article_markdown=final_md)
+        
+        _update_step_in_db(
+            task_id,
+            "editor agent",
+            "done",
+            "Final article ready. Stored in result.article_markdown.",
+        )
+
+        # Mark task as done
         db = SessionLocal()
         task = db.query(Task).filter(Task.id == task_id).first()
-        task.status = "done"
-        task.result = json.dumps(result)
-        task.updated_at = datetime.utcnow()
-        db.commit()
+        if task:
+            task.status = "done"
+            task.updated_at = datetime.utcnow()
+            db.commit()
         db.close()
 
     except Exception as e:
         print(f"Workflow error for task {task_id}: {e}")
-        if steps_data:
-            error_step_index = next(
-                (i for i, s in enumerate(steps_data) if s["status"] == "running"),
-                len(steps_data) - 1,
-            )
-            if error_step_index >= 0:
-                update_step_status(
-                    error_step_index,
-                    "error",
-                    f"Error during execution: {e}",
-                    {"title": "Error", "content": str(e)},
-                )
+
+        # Mark last step as error (best effort)
+        _update_step_in_db(
+            task_id,
+            "editor agent",
+            "error",
+            f"Error during pipeline execution: {str(e)}",
+        )
 
         db = SessionLocal()
         task = db.query(Task).filter(Task.id == task_id).first()
-        task.status = "error"
-        task.updated_at = datetime.utcnow()
-        db.commit()
+        if task:
+            task.status = "error"
+            task.updated_at = datetime.utcnow()
+            db.commit()
         db.close()
