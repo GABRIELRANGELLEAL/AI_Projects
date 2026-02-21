@@ -350,7 +350,20 @@ def run_pipeline(task_id: str, prompt: str, sources: List[str], n_articles: int)
             f"Running research agent with sources={sources} and n_articles={n_articles}.",
         )
 
-        research_text, _ = research_agent(prompt=prompt)
+        research_prompt = f"""
+You are a research agent.
+
+User prompt:
+{prompt}
+
+Constraints:
+- Allowed sources: {sources}
+- Select up to {n_articles} articles/papers.
+
+Return a structured research summary with citations/links when possible.
+""".strip()
+
+        research_text, _ = research_agent(prompt=research_prompt)
 
         _update_result_field(task_id, research_text=research_text)
         

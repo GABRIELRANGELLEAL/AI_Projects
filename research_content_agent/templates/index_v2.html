@@ -9,63 +9,241 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
-    :root{
-      --bg:#fbfbfd;
-      --card:#ffffff;
-      --muted:#6b7280;
-      --border:#e5e7eb;
+    :root {
+      --bg: #fbfbfd;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
       --shadow: 0 10px 25px rgba(0,0,0,.06);
       --radius: 18px;
+      --input-bg: #fff;
+      --input-border: #dee2e6;
     }
 
-    body { background: var(--bg); }
+    [data-theme="dark"] {
+      --bg: #1a1a1e;
+      --card: #25252b;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --border: #374151;
+      --shadow: 0 10px 25px rgba(0,0,0,.35);
+      --input-bg: #1f2937;
+      --input-border: #4b5563;
+    }
+
+    body { background: var(--bg); color: var(--text); }
     .hero-title { font-weight: 800; letter-spacing: -0.02em; }
     .pill {
-      font-size:.85rem;
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius:999px;
-      padding:.25rem .6rem;
+      font-size: .85rem;
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 999px;
+      padding: .25rem .6rem;
       color: var(--muted);
     }
-    .app-card{
-      border:1px solid var(--border);
+    .app-card {
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--card);
       box-shadow: var(--shadow);
     }
     .subtle { color: var(--muted); }
-    .builder-title { font-size: .85rem; color: var(--muted); letter-spacing:.08em; }
-    .opt-tile{
-      border:1px solid var(--border);
+    .builder-title { font-size: .85rem; color: var(--muted); letter-spacing: .08em; }
+    .opt-tile {
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: .75rem .85rem;
-      background:#fff;
+      background: var(--card);
     }
-    .opt-tile:hover { border-color:#cbd5e1; }
-    .mini-label{ font-size:.78rem; color:var(--muted); margin-bottom:.35rem; }
-    .report-card{
-      border:1px solid var(--border);
+    .opt-tile:hover { border-color: var(--muted); }
+    .mini-label { font-size: .78rem; color: var(--muted); margin-bottom: .35rem; }
+    .report-card {
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      background:#fff;
+      background: var(--card);
       box-shadow: var(--shadow);
     }
+    .form-control, .form-select { background: var(--input-bg); border-color: var(--input-border); color: var(--text); }
+    .form-control:focus, .form-select:focus { background: var(--input-bg); color: var(--text); }
 
     /* step colors */
     .step-running { background-color: #fff3cd; }
     .step-done { background-color: #d1e7dd; }
     .step-error { background-color: #f8d7da; }
     .step-pending { background-color: #e2e3e5; }
+    [data-theme="dark"] .step-running { background-color: #664d03; }
+    [data-theme="dark"] .step-done { background-color: #0f5132; }
+    [data-theme="dark"] .step-error { background-color: #842029; }
+    [data-theme="dark"] .step-pending { background-color: #495057; }
 
-    .step-header { cursor: pointer; user-select:none; }
+    .step-header { cursor: pointer; user-select: none; }
     .substep { font-size: 0.95em; margin-left: 1.25rem; }
     .substep-header { cursor: pointer; font-weight: 600; }
-    #finalReport { background:#fff; border:1px solid var(--border); padding:1rem; border-radius:14px; }
+    #finalReport { background: var(--card); border: 1px solid var(--border); padding: 1rem; border-radius: 14px; color: var(--text); }
+    .theme-toggle-top { position: fixed; top: 1rem; right: 1rem; z-index: 1030; }
+
+    /* SPLIT VIEW */
+    .split-root {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 992px) {
+      .split-root { grid-template-columns: 1fr; }
+    }
+    .split-left {
+      min-height: 60vh;
+    }
+    .split-right {
+      position: sticky;
+      top: 84px;
+      align-self: start;
+    }
+    .article-pane {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      padding: 16px;
+      height: 70vh;
+      overflow: auto;
+    }
+
+    /* CHAT-LIKE LEFT PANEL (SciSpace-style reference) */
+    .chat-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 0.5rem 0;
+      min-height: 60vh;
+    }
+    .chat-bubble-user {
+      align-self: flex-end;
+      max-width: 85%;
+      word-break: break-word;
+      border-radius: 1.5rem;
+      border-bottom-right-radius: 0;
+      background: #f5f5f4;
+      padding: 0.75rem 1rem;
+      color: var(--text);
+    }
+    [data-theme="dark"] .chat-bubble-user {
+      background: #3f3f46;
+      color: #f4f4f5;
+    }
+    .chat-bubble-user p {
+      margin: 0;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .chat-agent-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .chat-agent-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .chat-agent-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 6px;
+      background: #44403c;
+      color: #f5f5f4;
+      flex-shrink: 0;
+    }
+    [data-theme="dark"] .chat-agent-icon {
+      background: #57534e;
+      color: #fafaf9;
+    }
+    .chat-agent-icon .spinner-border {
+      width: 0.9rem;
+      height: 0.9rem;
+      border-width: 2px;
+    }
+    .chat-agent-content {
+      flex: 1;
+    }
+    .chat-agent-content h5 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem 0;
+      color: var(--text);
+    }
+    .chat-agent-content p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .chat-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+    .chat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      max-width: 100%;
+      word-break: break-word;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+      font-family: ui-monospace, monospace;
+      background: linear-gradient(to right, #fafaf9, #fff);
+      color: var(--text);
+    }
+    [data-theme="dark"] .chat-pill {
+      background: linear-gradient(to right, #292524, #1c1917);
+      border-color: #44403c;
+      color: #d6d3d1;
+    }
+    .chat-pill.pill-done {
+      background: linear-gradient(to right, #fef3c7, #fffbeb);
+      border-color: #fcd34d;
+      color: #92400e;
+    }
+    [data-theme="dark"] .chat-pill.pill-done {
+      background: linear-gradient(to right, #422006, #451a03);
+      border-color: #b45309;
+      color: #fcd34d;
+    }
+    .chat-pill.pill-running {
+      background: linear-gradient(to right, #fed7aa, #ffedd5);
+      border-color: #ea580c;
+      color: #c2410c;
+    }
+    [data-theme="dark"] .chat-pill.pill-running {
+      background: linear-gradient(to right, #431407, #7c2d12);
+      border-color: #ea580c;
+      color: #fdba74;
+    }
+    .chat-pill.pill-error {
+      background: linear-gradient(to right, #fecaca, #fee2e2);
+      border-color: #dc2626;
+      color: #b91c1c;
+    }
   </style>
 </head>
 
 <body class="py-5">
-  <div class="container" style="max-width: 980px;">
+  <div class="theme-toggle-top">
+    <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" id="themeToggle" aria-label="Toggle theme" title="Switch light/dark theme">
+      <span id="themeIcon">🌙</span>
+      <span id="themeLabel">Dark</span>
+    </button>
+  </div>
+  <div class="container" style="max-width: 1280px;">
     <!-- HERO -->
     <div class="text-center mb-4">
       <h1 class="hero-title display-6 mb-2">How can I help with your research?</h1>
@@ -93,7 +271,12 @@
 
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
           <div class="subtle small">Tip: add 3–4 details to improve the results.</div>
-          <button class="btn btn-primary px-4" onclick="submitPrompt()">Run</button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary px-3" id="magicWandBtn" onclick="insertSamplePrompt()" title="Insert a sample research prompt">
+              🪄 Sample
+            </button>
+            <button class="btn btn-primary px-4" onclick="submitPrompt()">Run</button>
+          </div>
         </div>
       </div>
     </div>
@@ -107,11 +290,11 @@
         <div class="opt-tile h-100">
           <div class="mini-label">WANT TO</div>
           <select id="wantTo" class="form-select">
-            <option value="review_literature">Review Literature</option>
+            <!-- <option value="review_literature">Review Literature</option> -->
             <option value="write_draft">Write a Draft</option>
-            <option value="search_papers">Search Papers</option>
-            <option value="extract_data">Extract Data</option>
-            <option value="write_report">Write a Report</option>
+            <!-- <option value="search_papers">Search Papers</option> -->
+            <!-- <option value="extract_data">Extract Data</option> -->
+            <!-- <option value="write_report">Write a Report</option> -->
           </select>
           <div class="subtle small mt-2">Controls the workflow goal (how you want the final output).</div>
         </div>
@@ -166,18 +349,76 @@
       </div>
     </div>
 
-    <!-- RUN OUTPUT -->
-    <div id="taskInfo" class="mb-3"></div>
-    <div id="stepStatusList" class="mb-4"></div>
-    <div id="stepDetails"></div>
-    <div id="finalOutput" class="mt-4"></div>
+    <!-- SPLIT VIEW: só aparece após clicar em Run; chat à esquerda, artigo à direita -->
+    <div id="splitView" class="split-root d-none">
+      <!-- LEFT: chat-like steps / live activity -->
+      <div class="split-left">
+        <div id="chatFeed" class="chat-feed"></div>
+      </div>
+
+      <!-- RIGHT: janela do artigo (ao lado do chat) -->
+      <div class="split-right">
+        <div class="report-card p-3 p-md-4">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+            <div>
+              <h5 class="mb-0">📝 Article Preview</h5>
+              <div class="subtle small" id="articleMeta">Waiting for content…</div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary btn-sm" onclick="downloadMarkdown()">⬇️ .md</button>
+              <button class="btn btn-outline-secondary btn-sm" onclick="downloadHTML()">⬇️ .html</button>
+            </div>
+          </div>
+
+          <div id="articlePane" class="article-pane">
+            <div class="subtle">Your draft/final article will appear here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     let currentTaskId = null;
     let pollInterval = null;
     let finalReportMarkdown = "";
+    let currentPromptForChat = '';
     const renderedSteps = new Map();
+
+    function getTheme() {
+      return localStorage.getItem('theme') || 'light';
+    }
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+      localStorage.setItem('theme', theme);
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+      if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+    }
+    function toggleTheme() {
+      const theme = getTheme() === 'dark' ? 'light' : 'dark';
+      setTheme(theme);
+    }
+
+    const samplePrompts = [
+      "Create a draft regarding quantum computing research. Include: 1) major developments and current benchmarks, 2) primary methodological approaches, 3) key challenges and open questions for future work.",
+      "Focus on the current state of quantum computing: practical capabilities, technological limitations, and theoretical implications",
+    ];
+    let samplePromptIndex = 0;
+    function insertSamplePrompt() {
+      const input = document.getElementById('promptInput');
+      if (!input) return;
+      input.value = samplePrompts[samplePromptIndex % samplePrompts.length];
+      samplePromptIndex += 1;
+      input.focus();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      setTheme(getTheme());
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+    });
 
     function disableUI(disabled){
       const btn = document.querySelector('button.btn.btn-primary');
@@ -200,20 +441,7 @@
     }
 
     function setTaskInfoGenerating(){
-      const wantTo = document.getElementById('wantTo').value;
-      const sources = getSelectedSources().join(", ");
-      const n = getNumArticles();
-      document.getElementById('taskInfo').innerHTML = `
-        <div class="report-card p-3">
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-              <div class="fw-semibold">⚙️ Running task</div>
-              <div class="subtle small">want_to=<code>${wantTo}</code> · sources=<code>${sources}</code> · n_articles=<code>${n}</code></div>
-            </div>
-            <div><span class='spinner-border spinner-border-sm text-primary'></span></div>
-          </div>
-        </div>
-      `;
+      // User bubble is rendered in fetchProgress when we have data.prompt
     }
 
     function submitPrompt() {
@@ -239,10 +467,15 @@
       .then(res => res.json())
       .then(data => {
         currentTaskId = data.task_id;
+        const prompt = document.getElementById('promptInput').value.trim();
+        currentPromptForChat = prompt;
 
-        document.getElementById('stepStatusList').innerHTML = '';
-        document.getElementById('stepDetails').innerHTML = '';
-        document.getElementById('finalOutput').innerHTML = '';
+        document.getElementById('splitView').classList.remove('d-none');
+        document.getElementById('chatFeed').innerHTML = '';
+        const articleMeta = document.getElementById('articleMeta');
+        const articlePane = document.getElementById('articlePane');
+        if (articleMeta) articleMeta.textContent = 'Waiting for content…';
+        if (articlePane) articlePane.innerHTML = '<div class="subtle">Your draft/final article will appear here.</div>';
         renderedSteps.clear();
 
         if (pollInterval) clearInterval(pollInterval);
@@ -254,103 +487,91 @@
     function fetchProgress() {
       if (!currentTaskId) return;
 
-      fetch(`/task_progress/${currentTaskId}`)
+      fetch(`/tasks/${currentTaskId}`)
         .then(res => res.json())
         .then(data => {
-          const { steps } = data;
+          const result = data.result || {};
+          const steps = result.steps || [];
+          const prompt = data.prompt || currentPromptForChat || '';
+
+          // Build chat feed: user bubble + agent step blocks
+          let feedHTML = '';
+
+          if (prompt) {
+            feedHTML += `
+              <div class="chat-bubble-user">
+                <p>${escapeHtml(prompt)}</p>
+              </div>
+            `;
+          }
 
           steps.forEach((step, index) => {
-            const stepKey = `${step.title}-${step.status}-${step.substeps.length}`;
-            if (renderedSteps.get(index) === stepKey) return;
-            renderedSteps.set(index, stepKey);
+            const title = step.name != null ? step.name : (step.title || `Step ${index + 1}`);
+            const detail = step.detail != null ? step.detail : (step.description || '');
+            const status = step.status || 'pending';
+            const pillClass = status === 'done' ? 'pill-done' : (status === 'running' ? 'pill-running' : (status === 'error' ? 'pill-error' : ''));
+            const statusLabel = status === 'done' ? 'Completed' : (status === 'running' ? 'Running…' : (status === 'error' ? 'Error' : 'Pending'));
+            const iconContent = status === 'done' ? '✓' : (status === 'running' ? '<span class="spinner-border spinner-border-sm text-light"></span>' : (status === 'error' ? '!' : '○'));
 
-            const icon =
-              step.status === 'done' ? '✅' :
-              step.status === 'running' ? '<span class="spinner-border spinner-border-sm text-warning"></span>' :
-              step.status === 'error' ? '❌' : '🕓';
+            const substeps = step.substeps || [];
+            const pillsHTML = substeps.length
+              ? substeps.map(sub => `<span class="chat-pill ${pillClass}">${escapeHtml(sub.title || 'Detail')}</span>`).join('')
+              : `<span class="chat-pill ${pillClass}">${statusLabel}</span>`;
 
-            const rowId = `step-row-${index}`;
-            let row = document.getElementById(rowId);
-            if (!row) {
-              row = document.createElement('div');
-              row.id = rowId;
-              row.className = `step-header ${getStatusClass(step.status)}`;
-              row.innerHTML = `${icon} ${step.title}`;
-              document.getElementById('stepStatusList').appendChild(row);
-            } else {
-              row.className = `step-header ${getStatusClass(step.status)}`;
-              row.innerHTML = `${icon} ${step.title}`;
-            }
-
-            const cardId = `step-card-${index}`;
-            let card = document.getElementById(cardId);
-
-            const substepsHTML = (step.substeps || []).map((sub, j) => `
-              <div class="substep mt-2">
-                <div class="substep-header" data-bs-toggle="collapse" data-bs-target="#substep-${index}-${j}">
-                  ➕ ${sub.title}
+            feedHTML += `
+              <div class="chat-agent-block" id="step-block-${index}">
+                <div class="chat-agent-row">
+                  <div class="chat-agent-icon">${iconContent}</div>
                 </div>
-                <div id="substep-${index}-${j}" class="collapse">
-                  <div class="bg-light p-2 rounded" style="white-space:pre-wrap;">${marked.parse(sub.content)}</div>
+                <div class="chat-agent-content">
+                  <h5>${escapeHtml(title)}</h5>
+                  ${detail ? `<p>${escapeHtml(detail)}</p>` : ''}
                 </div>
+                <div class="chat-pills">${pillsHTML}</div>
               </div>
-            `).join('');
-
-            const bodyHTML = `
-              <p class="mb-2">${step.description || ""}</p>
-              ${substepsHTML}
             `;
-
-            if (!card) {
-              card = document.createElement('div');
-              card.id = cardId;
-              card.className = `card mb-3 ${getStepClass(step.status)}`;
-              card.innerHTML = `
-                <div class="card-header">${step.title} — ${String(step.status).toUpperCase()}</div>
-                <div class="card-body">${bodyHTML}</div>
-              `;
-              document.getElementById('stepDetails').appendChild(card);
-            } else {
-              card.className = `card mb-3 ${getStepClass(step.status)}`;
-              card.querySelector('.card-header').textContent = `${step.title} — ${String(step.status).toUpperCase()}`;
-              card.querySelector('.card-body').innerHTML = bodyHTML;
-            }
           });
 
-          fetchTaskStatus();
-        })
-        .catch(() => {});
-    }
+          const feedKey = prompt + '|' + steps.map(s => `${s.name}-${s.status}-${(s.detail||'').slice(0,80)}`).join('|');
+          if (renderedSteps.get('feedKey') !== feedKey) {
+            renderedSteps.set('feedKey', feedKey);
+            document.getElementById('chatFeed').innerHTML = feedHTML || '<div class="subtle">Waiting for steps…</div>';
+          }
 
-    function fetchTaskStatus() {
-      fetch(`/task_status/${currentTaskId}`)
-        .then(res => res.json())
-        .then(task => {
-          if (task.status === 'done' || task.status === 'error') {
+          if (data.status === 'done' || data.status === 'error') {
             clearInterval(pollInterval);
             disableUI(false);
           }
 
-          if (typeof task.result === 'string') {
-            try { task.result = JSON.parse(task.result); } catch {}
-          }
+          // Prefer final article, otherwise show draft, otherwise show research_text (optional)
+          const finalMd = result.article_markdown || result.html_report;
+          const draftMd = result.draft_markdown;
+          const researchMd = result.research_text;
 
-          if (task.status === 'done' && task.result?.html_report) {
-            finalReportMarkdown = task.result.html_report;
-            document.getElementById('finalOutput').innerHTML = `
-              <div class="report-card p-3 p-md-4">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                  <h4 class="mb-0">📄 Final Report</h4>
-                  <div class="d-flex gap-2">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="downloadMarkdown()">⬇️ .md</button>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="downloadHTML()">⬇️ .html</button>
-                  </div>
-                </div>
-                <div id="finalReport">${marked.parse(finalReportMarkdown)}</div>
-              </div>
-            `;
+          let contentMd = finalMd || draftMd || researchMd || '';
+          let label = finalMd ? 'Final' : (draftMd ? 'Draft' : (researchMd ? 'Research notes' : 'Waiting'));
+
+          if (contentMd) {
+            finalReportMarkdown = contentMd;
+            const meta = document.getElementById('articleMeta');
+            const pane = document.getElementById('articlePane');
+            if (meta) meta.textContent = `${label} · task=${currentTaskId} · status=${data.status}`;
+            if (pane) pane.innerHTML = marked.parse(contentMd);
+          } else {
+            const meta = document.getElementById('articleMeta');
+            const pane = document.getElementById('articlePane');
+            if (meta) meta.textContent = `Waiting for content… · task=${currentTaskId} · status=${data.status}`;
+            if (pane) pane.innerHTML = '<div class="subtle">No content yet. Steps will appear on the left.</div>';
           }
-        });
+        })
+        .catch(() => {});
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     function getStatusClass(status) {

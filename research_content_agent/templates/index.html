@@ -154,17 +154,21 @@ function submitPrompt() {
 function fetchProgress() {
   if (!currentTaskId) return;
 
-  fetch(`/task_progress/${currentTaskId}`)
+  fetch(`/tasks/${currentTaskId}`)
     .then(res => res.json())
     .then(data => {
-      const { steps } = data;
+      const result = data.result || {};
+      const steps = result.steps || [];
 
       if (Array.isArray(steps) && steps.length > 0) {
         setStepsGenerated();
       }
 
       steps.forEach((step, index) => {
-        const stepKey = `${step.title}-${step.status}-${step.substeps.length}`;
+        const title = step.name != null ? step.name : (step.title || `Step ${index + 1}`);
+        const detail = step.detail != null ? step.detail : (step.description || '');
+        const substeps = step.substeps || [];
+        const stepKey = `${title}-${step.status}-${detail}`;
         if (renderedSteps.get(index) === stepKey) return;
 
         renderedSteps.set(index, stepKey);
@@ -179,22 +183,22 @@ function fetchProgress() {
           row = document.createElement('div');
           row.id = rowId;
           row.className = `step-header ${getStatusClass(step.status)}`;
-          row.innerHTML = `${icon} ${step.title}`;
+          row.innerHTML = `${icon} ${title}`;
           document.getElementById('stepStatusList').appendChild(row);
         } else {
           row.className = `step-header ${getStatusClass(step.status)}`;
-          row.innerHTML = `${icon} ${step.title}`;
+          row.innerHTML = `${icon} ${title}`;
         }
 
         const cardId = `step-card-${index}`;
         let card = document.getElementById(cardId);
-        const substepsHTML = step.substeps.map((sub, j) => `
+        const substepsHTML = substeps.map((sub, j) => `
           <div class="substep">
             <div class="substep-header" data-bs-toggle="collapse" data-bs-target="#substep-${index}-${j}" aria-expanded="false" aria-controls="substep-${index}-${j}">
-              ➕ ${sub.title}
+              ➕ ${sub.title || 'Detail'}
             </div>
             <div id="substep-${index}-${j}" class="collapse">
-              <div class="bg-light p-2 rounded" style="white-space:pre-wrap;">${marked.parse(sub.content)}</div>
+              <div class="bg-light p-2 rounded" style="white-space:pre-wrap;">${marked.parse(sub.content || '')}</div>
             </div>
           </div>
         `).join('');
@@ -204,52 +208,37 @@ function fetchProgress() {
           card.id = cardId;
           card.className = `card mb-3 ${getStepClass(step.status)}`;
           card.innerHTML = `
-            <div class="card-header">${step.title} — ${step.status.toUpperCase()}</div>
+            <div class="card-header">${title} — ${step.status.toUpperCase()}</div>
             <div class="card-body">
-              <p>${step.description}</p>
+              <p>${detail}</p>
               ${substepsHTML}
             </div>
           `;
           document.getElementById('stepDetails').appendChild(card);
         } else {
           card.className = `card mb-3 ${getStepClass(step.status)}`;
-          card.querySelector('.card-header').textContent = `${step.title} — ${step.status.toUpperCase()}`;
+          card.querySelector('.card-header').textContent = `${title} — ${step.status.toUpperCase()}`;
           card.querySelector('.card-body').innerHTML = `
-            <p>${step.description}</p>
+            <p>${detail}</p>
             ${substepsHTML}
           `;
         }
       });
 
-      fetchTaskStatus();
-    })
-    .catch(() => {
-      // silent
-    });
-}
-
-function fetchTaskStatus() {
-  fetch(`/task_status/${currentTaskId}`)
-    .then(res => res.json())
-    .then(task => {
       const statusIcon = document.getElementById('statusIcon');
-
-      if (task.status === 'done') {
+      if (data.status === 'done') {
         if (statusIcon) statusIcon.textContent = '✅';
         clearInterval(pollInterval);
         disableUI(false);
-      } else if (task.status === 'error') {
+      } else if (data.status === 'error') {
         if (statusIcon) statusIcon.textContent = '❌';
         clearInterval(pollInterval);
         disableUI(false);
       }
 
-      if (typeof task.result === 'string') {
-        try { task.result = JSON.parse(task.result); } catch { return; }
-      }
-
-      if (task.status === 'done' && task.result?.html_report) {
-        finalReportMarkdown = task.result.html_report;
+      const articleMd = result.article_markdown || result.html_report;
+      if (data.status === 'done' && articleMd) {
+        finalReportMarkdown = articleMd;
         document.getElementById('finalOutput').innerHTML = `
           <h4>📄 Final Report</h4>
           <div class="mb-2">
@@ -259,6 +248,9 @@ function fetchTaskStatus() {
           <div id="finalReport">${marked.parse(finalReportMarkdown)}</div>
         `;
       }
+    })
+    .catch(() => {
+      // silent
     });
 }
 
