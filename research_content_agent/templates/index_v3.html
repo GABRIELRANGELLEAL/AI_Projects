@@ -377,9 +377,15 @@
         clearInterval(pollInterval);
         pollInterval = null;
         disableUI(false);
-        document.getElementById('statusBadgeSidebar').textContent = 'Parado';
+        document.getElementById('statusBadgeSidebar').textContent = 'Cancelado';
         document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-500/30';
         renderPipeline(null, currentTaskId, 'idle'); // Volta pro estado waiting
+
+        // Avisa o backend para parar a thread
+        if (currentTaskId) {
+          fetch(`${API_BASE_URL}/tasks/${currentTaskId}/cancel`, { method: 'POST' })
+            .catch(err => console.error("Erro ao cancelar no backend:", err));
+        }
       }
     }
 
@@ -453,13 +459,16 @@
           }
 
           // Verificar conclusão
-          if (data.status === 'done' || data.status === 'error') {
+          if (data.status === 'done' || data.status === 'error' || data.status === 'cancelled') {
             clearInterval(pollInterval);
             pollInterval = null;
             disableUI(false);
             if (data.status === 'done') {
               document.getElementById('statusBadgeSidebar').textContent = 'Concluído';
               document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2.5 py-1 rounded border border-emerald-200 dark:border-emerald-500/30';
+            } else if (data.status === 'cancelled') {
+              document.getElementById('statusBadgeSidebar').textContent = 'Cancelado';
+              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-500/30';
             } else {
               document.getElementById('statusBadgeSidebar').textContent = 'Erro';
               document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2.5 py-1 rounded border border-red-200 dark:border-red-500/30';
@@ -492,6 +501,9 @@
           } else if (data.status === 'error') {
             badge.textContent = "Falha na Tarefa";
             badge.className = "text-xs font-medium text-red-600 dark:text-red-400";
+          } else if (data.status === 'cancelled') {
+            badge.textContent = "Tarefa Cancelada";
+            badge.className = "text-xs font-medium text-amber-600 dark:text-amber-400";
           }
 
           if (contentMd && finalReportMarkdown !== contentMd) {

@@ -165,6 +165,16 @@ def get_task(task_id: str):
         "result": json.loads(task.result) if task.result else {}
     }
 
+@app.post("/tasks/{task_id}/cancel")
+def cancel_task(task_id: str):
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if task and task.status == "running":
+        task.status = "cancelled"
+        db.commit()
+    db.close()
+    return {"status": "cancelled"}
+
 
 # ============================================================
 # 7) Helpers e Workflow
@@ -194,27 +204,42 @@ def _update_result_field(task_id: str, **fields):
         db.commit()
     db.close()
 
+def _is_cancelled(task_id: str) -> bool:
+    db = SessionLocal()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    cancelled = task and task.status == "cancelled"
+    db.close()
+    return cancelled
+
 def run_pipeline(task_id: str, prompt: str, sources: List[str]):
     try:
+        if _is_cancelled(task_id): return
+        
         # Etapa 1
         _update_step_in_db(task_id, "extracting informations", "running")
         _update_step_in_db(task_id, "extracting informations", "done")
+
+        if _is_cancelled(task_id): return
 
         # Etapa 2 - Research (CORREÇÃO: Usando o prompt estruturado)
         _update_step_in_db(task_id, "research agent", "running")
         
         # Criamos uma instrução clara para o agente sobre as fontes
-        structured_research_prompt = f"Topic: {prompt}\nSources: {', '.join(sources)}"
+        structured_research_prompt = f"Topic: {prompt}, Sources: {', '.join(sources)}"
         
         research_text, _ = research_agent(prompt=structured_research_prompt)
         _update_result_field(task_id, research_text=research_text)
         _update_step_in_db(task_id, "research agent", "done")
+
+        if _is_cancelled(task_id): return
 
         # Etapa 3 - Writer
         _update_step_in_db(task_id, "write agent", "running")
         draft_md, _ = writer_agent(prompt=research_text)
         _update_result_field(task_id, draft_markdown=draft_md)
         _update_step_in_db(task_id, "write agent", "done")
+
+        if _is_cancelled(task_id): return
 
         # Etapa 4 - Editor
         _update_step_in_db(task_id, "editor agent", "running")

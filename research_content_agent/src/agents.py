@@ -12,7 +12,7 @@ client = Client()
 
 # === Research Agent ===
 def research_agent(
-    prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
+prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
 ):
     print("==================================")
     print("🔍 Research Agent")
@@ -65,11 +65,11 @@ def research_agent(
 
         ## OUTPUT FORMAT:
 
-        Present your research findings in a structured format that includes:
-        1. **Summary of Research Approach**: Tools used and search strategy
-        2. **Key Findings**: Organized by subtopic or source
-        3. **Source Details**: Include URLs, titles, authors, and publication dates
-        4. **Limitations**: Note any gaps in available information
+        Present your research findings as a simple list of the selected articles/sources. Do NOT include a synthesis, research approach, key findings, or extra explanations. For each selected source, provide EXACTLY and ONLY the following:
+
+        - **Title:** [Title]
+        - **URL/Link:** [URL]
+        - **Abstract:** [The abstract or a concise summary of the source]
 
         Today is {datetime.now().strftime("%Y-%m-%d")}.
 
