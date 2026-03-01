@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR" class="antialiased">
+<html lang="pt-BR" class="antialiased dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -9,7 +9,56 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   
-  <!-- Configuração do Tailwind -->
+  <!-- html2pdf.js para exportação de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <!-- Configuração do Tailwind com Variáveis para Tema -->
+  <style>
+    :root {
+      /* Modo Claro */
+      --app-bg: #f3f4f6;
+      --app-panel: #ffffff;
+      --app-border: #e5e7eb;
+      --app-input: #ffffff;
+    }
+    .dark {
+      /* Modo Escuro */
+      --app-bg: #0a0d14;
+      --app-panel: #12151e;
+      --app-border: #1f2937;
+      --app-input: #1b1f2b;
+    }
+    
+    /* Scrollbar minimalista */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #374151; }
+    ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    
+    /* Pulso da timeline */
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-subtle-pulse { animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    /* Estilos específicos para impressão (PDF) */
+    @media print {
+      body * { visibility: hidden; }
+      #articlePane, #articlePane * { visibility: visible; }
+      #articlePane {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        color: black !important;
+        background: white !important;
+      }
+    }
+  </style>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -17,18 +66,29 @@
         extend: {
           fontFamily: {
             sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
           },
           colors: {
+            app: {
+              bg: 'var(--app-bg)',
+              panel: 'var(--app-panel)',
+              border: 'var(--app-border)',
+              input: 'var(--app-input)'
+            },
             brand: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              500: '#3b82f6',
-              600: '#2563eb',
-              900: '#1e3a8a',
+              500: '#6366f1',
+              600: '#4f46e5',
             }
           }
         }
       }
+    }
+
+    // Prevenir flash do tema errado no carregamento
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
     }
   </script>
 
@@ -37,258 +97,248 @@
   
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-
-  <style>
-    /* Transições suaves gerais */
-    body { transition: background-color 0.3s ease, color 0.3s ease; }
-    
-    /* Scrollbar personalizada */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .dark ::-webkit-scrollbar-thumb { background: #475569; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
-    /* Animação de pulso para etapa ativa */
-    @keyframes subtle-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .animate-subtle-pulse { animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
-    /* Hide scrollbar for the segmented control */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  </style>
 </head>
 
-<body class="bg-gray-50 text-gray-900 dark:bg-[#0f1115] dark:text-gray-100 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+<body class="bg-app-bg text-gray-900 dark:text-gray-200 h-screen flex overflow-hidden font-sans selection:bg-brand-500 selection:text-white transition-colors duration-300">
   
-  <!-- Topbar -->
-  <header class="sticky top-0 z-40 bg-gray-50/80 dark:bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-2 cursor-pointer" onclick="resetUI()">
-        <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white shadow-sm">
-          <i data-lucide="microscope" class="w-5 h-5"></i>
+  <!-- PAINEL ESQUERDO: Configurar & Executar -->
+  <aside class="w-full md:w-[420px] border-r border-app-border bg-app-panel flex flex-col flex-shrink-0 relative z-10 transition-colors duration-300">
+    
+    <!-- Header Sidebar -->
+    <div class="p-5 border-b border-app-border flex justify-between items-start">
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-gray-900 dark:text-white font-semibold text-sm">Orquestrador de IA</h2>
         </div>
-        <span class="font-bold text-lg tracking-tight">Research<span class="text-brand-600 dark:text-brand-500">Agent</span></span>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Escolha as fontes, defina os parâmetros e insira o prompt.</p>
+      </div>
+      <span id="statusBadgeSidebar" class="text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 transition-colors">
+        Idle
+      </span>
+    </div>
+
+    <!-- Body Sidebar (Scrolável) -->
+    <div class="p-5 flex-1 overflow-y-auto flex flex-col gap-6">
+      
+      <!-- Prompt Input -->
+      <div>
+        <label class="block text-gray-800 dark:text-gray-200 font-medium mb-2 text-sm">Prompt</label>
+        <div class="relative group">
+          <textarea 
+            id="promptInput" 
+            class="w-full bg-app-input border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors min-h-[140px] resize-none placeholder-gray-400 dark:placeholder-gray-500 shadow-inner"
+            placeholder="Exemplo: Escreva um rascunho sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto."
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Sources -->
+      <div>
+        <label class="block text-gray-800 dark:text-gray-200 font-medium mb-3 text-sm">Fontes de Pesquisa</label>
+        <div class="flex flex-wrap gap-2">
+          <label class="cursor-pointer relative">
+            <input type="checkbox" value="scielo" class="source-cb sr-only" checked>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
+              <i data-lucide="book-open" class="w-3.5 h-3.5 mr-1.5"></i> SciELO
+            </span>
+          </label>
+          <label class="cursor-pointer relative">
+            <input type="checkbox" value="wikipedia" class="source-cb sr-only" checked>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
+              <i data-lucide="book" class="w-3.5 h-3.5 mr-1.5"></i> Wikipedia
+            </span>
+          </label>
+          <label class="cursor-pointer relative">
+            <input type="checkbox" value="arxiv" class="source-cb sr-only" checked>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
+              <i data-lucide="file-text" class="w-3.5 h-3.5 mr-1.5"></i> arXiv
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Pipeline Steps (Estilo Imagem) -->
+      <div class="bg-gray-50 dark:bg-[#161923] border border-gray-200 dark:border-[#1f2937] rounded-lg p-4 font-mono shadow-sm dark:shadow-inner transition-colors">
+        <div class="flex justify-between items-center mb-4 font-sans font-semibold text-sm text-gray-800 dark:text-gray-300">
+          <span>Pipeline steps</span>
+          <span class="text-gray-500 font-normal text-xs" id="taskIdDisplay">task: —</span>
+        </div>
+        
+        <div class="flex flex-col gap-3" id="pipelineStepsList">
+          <!-- Populated by JS -->
+        </div>
+        
+        <div class="mt-4 text-gray-500 dark:text-gray-400 text-xs font-sans" id="pipelineFooter">Waiting...</div>
+      </div>
+
+    </div>
+
+    <!-- Footer Sidebar (Ações) -->
+    <div class="p-4 border-t border-app-border flex items-center gap-2 bg-app-panel transition-colors">
+      <button type="button" onclick="insertSamplePrompt()" class="flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 transition-colors" title="Inserir prompt de exemplo">
+        <i data-lucide="wand-2" class="w-4 h-4"></i> Exemplo
+      </button>
+      
+      <button id="runBtn" onclick="submitPrompt()" class="flex-1 flex justify-center items-center gap-1.5 px-4 py-2 rounded-md bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-brand-500/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+        <i data-lucide="play" class="w-4 h-4 fill-current"></i> Executar
+      </button>
+
+      <button id="stopBtn" onclick="stopPolling()" class="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-transparent hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/30 dark:hover:text-red-400 dark:hover:border-red-900/50 text-gray-500 dark:text-gray-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Interromper polling" disabled>
+        <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- PAINEL DIREITO: Prévia (Main) -->
+  <main class="flex-1 flex flex-col min-w-0 bg-app-bg transition-colors duration-300">
+    
+    <!-- Header Main -->
+    <div class="h-16 px-6 border-b border-app-border flex justify-between items-center flex-shrink-0 bg-app-panel lg:bg-transparent">
+      <div>
+        <h2 class="text-gray-900 dark:text-white font-semibold text-sm flex items-center gap-2">
+          Prévia
+        </h2>
+        <p id="articleBadge" class="text-xs text-gray-500 mt-0.5">Nenhum conteúdo ainda</p>
       </div>
       
-      <div class="flex items-center gap-4">
-        <span class="hidden md:inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-          FastAPI + Postgres
-        </span>
-        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400 focus:outline-none" aria-label="Alternar Tema">
-          <i data-lucide="moon" id="icon-moon" class="w-5 h-5 hidden"></i>
-          <i data-lucide="sun" id="icon-sun" class="w-5 h-5 hidden"></i>
+      <div class="flex items-center gap-2">
+        <button id="btnCopyMd" onclick="copyMD()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar MD
+        </button>
+        <button id="btnMd" onclick="downloadMarkdown()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> .md
+        </button>
+        <button id="btnHtml" onclick="downloadHTML()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> .html
+        </button>
+        <button id="btnPdf" onclick="downloadPDF()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+          <i data-lucide="file-down" class="w-3.5 h-3.5"></i> .pdf
+        </button>
+        
+        <div class="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
+        
+        <!-- Botão Toggle Tema -->
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="flex items-center justify-center p-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors" title="Alternar Modo Claro/Escuro">
+          <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+          <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
         </button>
       </div>
     </div>
-  </header>
 
-  <main class="flex-grow flex flex-col w-full relative">
-    
-    <!-- VIEW 1: Configuração / Setup -->
-    <div id="setup-view" class="w-full max-w-3xl mx-auto px-4 sm:px-6 flex-grow flex flex-col justify-center py-12 transition-all duration-500 ease-in-out">
-      
-      <div class="text-center mb-8">
-        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">O que vamos pesquisar hoje?</h1>
-        <p class="text-gray-500 dark:text-gray-400 text-lg">Defina o tópico, escolha suas fontes e deixe o agente trabalhar.</p>
-      </div>
-
-      <!-- Main Input Card -->
-      <div class="bg-white dark:bg-[#16181d] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-2 transition-all focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500">
-        <textarea 
-          id="promptInput" 
-          rows="3" 
-          class="w-full bg-transparent border-0 resize-none focus:ring-0 p-4 text-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none"
-          placeholder="Descreva sua pergunta de pesquisa com alguns detalhes (contexto, restrições, o que você espera)..."
-        ></textarea>
-        
-        <div class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 dark:border-gray-800/60 p-3 gap-4">
-          
-          <!-- Quick Configs -->
-          <div class="flex items-center gap-4 w-full sm:w-auto overflow-x-auto no-scrollbar">
-            
-            <!-- Fontes (Toggles) -->
-            <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 p-1.5 rounded-lg border border-gray-200 dark:border-gray-700/50">
-              <label class="cursor-pointer relative">
-                <input type="checkbox" value="tavily" class="source-cb sr-only" checked>
-                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
-                  Tavily
-                </span>
-              </label>
-              <label class="cursor-pointer relative">
-                <input type="checkbox" value="wikipedia" class="source-cb sr-only" checked>
-                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
-                  Wikipedia
-                </span>
-              </label>
-              <label class="cursor-pointer relative">
-                <input type="checkbox" value="arxiv" class="source-cb sr-only" checked>
-                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
-                  arXiv
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button type="button" onclick="insertSamplePrompt()" class="p-2 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors tooltip-trigger" title="Inserir exemplo">
-              <i data-lucide="wand-2" class="w-5 h-5"></i>
-            </button>
-            <button id="runBtn" onclick="submitPrompt()" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-2 rounded-lg transition-colors focus:ring-4 focus:ring-brand-500/20">
-              Pesquisar
-              <i data-lucide="arrow-right" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div class="text-center mt-6">
-        <p class="text-sm text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1">
-          <i data-lucide="info" class="w-4 h-4"></i>
-          O modelo tentará coletar as informações baseadas na sua escolha de fontes.
-        </p>
-      </div>
-    </div>
-
-
-    <!-- VIEW 2: Workspace (Split View) -->
-    <div id="workspace-view" class="hidden w-full max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)]">
-      <div class="flex flex-col lg:flex-row gap-6 h-full">
-        
-        <!-- Sidebar: Steps / Timeline -->
-        <div class="w-full lg:w-1/3 flex flex-col bg-white dark:bg-[#16181d] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden flex-shrink-0">
-          <div class="p-4 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#16181d]/50">
-            <h3 class="font-semibold flex items-center gap-2">
-              <i data-lucide="activity" class="w-4 h-4 text-brand-500"></i>
-              Progresso da Tarefa
-            </h3>
-          </div>
-          <div class="flex-grow overflow-y-auto p-5" id="timelineFeed">
-             <!-- Timeline items injetados via JS -->
-          </div>
-        </div>
-
-        <!-- Main Content: Article -->
-        <div class="w-full lg:w-2/3 flex flex-col bg-white dark:bg-[#16181d] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden h-[60vh] lg:h-auto">
-          
-          <!-- Article Toolbar -->
-          <div class="p-3 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#16181d]/50 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-col">
-              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500" id="articleBadge">Aguardando</span>
-              <span class="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[250px] sm:max-w-sm" id="articlePromptTitle">...</span>
-            </div>
-            
-            <div class="flex items-center gap-2">
-              <button onclick="downloadMarkdown()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50" id="btnMd" disabled>
-                <i data-lucide="download" class="w-4 h-4"></i>
-                .MD
-              </button>
-              <button onclick="downloadHTML()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50" id="btnHtml" disabled>
-                <i data-lucide="code" class="w-4 h-4"></i>
-                .HTML
-              </button>
-            </div>
-          </div>
-
-          <!-- Article Content -->
-          <div class="flex-grow overflow-y-auto p-6 md:p-10 relative bg-white dark:bg-[#0f1115]/30">
-            <div id="articlePane" class="prose prose-slate md:prose-base lg:prose-lg dark:prose-invert max-w-3xl mx-auto">
-              <!-- Blank state -->
-              <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 dark:text-gray-600 mt-20">
-                <i data-lucide="file-text" class="w-16 h-16 mb-4 opacity-50"></i>
-                <p>O rascunho e o artigo final aparecerão aqui.</p>
-                <p class="text-sm mt-1 opacity-70">Acompanhe o progresso no painel lateral.</p>
-              </div>
-            </div>
-          </div>
-          
+    <!-- Body Main -->
+    <div class="flex-1 p-4 md:p-6 overflow-hidden flex flex-col">
+      <div class="w-full h-full bg-app-panel border border-app-border rounded-xl shadow-lg overflow-y-auto relative transition-colors">
+        <div id="articlePane" class="prose prose-slate dark:prose-invert prose-sm md:prose-base max-w-4xl mx-auto p-8 md:p-12 transition-colors">
+          <p class="text-gray-500 font-medium">Execute uma tarefa para ver o rascunho/resultado final aqui.</p>
         </div>
       </div>
     </div>
+
   </main>
 
   <script>
-    // Iniciar ícones Lucide
+    // Inicializar ícones
     lucide.createIcons();
 
-    // Configuração da API para evitar erro de parse de URL no modo Preview/Local
-    // A validação agora checa explicitamente se estamos em um protocolo blob: (gerado pelo iframe de preview)
+    // ----------------------------------------------------
+    // Lógica de UI - Alternância de Tema (Claro/Escuro)
+    // ----------------------------------------------------
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      if (isDark) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    // Configuração da API
     const isPreview = window.location.protocol === 'file:' || window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
     const API_BASE_URL = isPreview ? 'http://localhost:8000' : '';
 
-    // Estado da Aplicação
+    // Estado global
     let currentTaskId = null;
     let pollInterval = null;
     let finalReportMarkdown = "";
     let lastRenderedStepsKey = "";
 
-    // ----------------------------------------------------
-    // Lógica de UI - Tema Claro/Escuro
-    // ----------------------------------------------------
-    const themeToggleBtn = document.getElementById('themeToggle');
-    const iconSun = document.getElementById('icon-sun');
-    const iconMoon = document.getElementById('icon-moon');
+    // Componente de UI - Pipeline Steps (Estilo Imagem)
+    const defaultPipelineSteps = [
+      "extracting informations",
+      "research agent",
+      "write agent",
+      "editor agent"
+    ];
 
-    function getTheme() {
-      if (localStorage.getItem('theme')) {
-        return localStorage.getItem('theme');
-      }
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    function renderPipeline(stepsData, taskId, statusStr) {
+      document.getElementById('taskIdDisplay').textContent = taskId ? `task: ${taskId.substring(0,8)}...` : 'task: —';
+      
+      const stepsToRender = (stepsData && stepsData.length > 0) 
+        ? stepsData 
+        : defaultPipelineSteps.map(name => ({name: name, status: 'pending'}));
+      
+      let html = '';
+      
+      stepsToRender.forEach(step => {
+        // Estilos baseados no status da etapa
+        let badgeClass = "border-gray-300 text-gray-500 dark:border-gray-600 dark:text-gray-400 bg-transparent"; // default: pending
+        let badgeText = step.status || "pending";
+        
+        if (step.status === 'running') {
+          badgeClass = "border-brand-300 text-brand-600 bg-brand-50 dark:border-brand-500 dark:text-brand-400 dark:bg-brand-500/10 animate-pulse";
+        } else if (step.status === 'done') {
+          badgeClass = "border-emerald-300 text-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:bg-emerald-500/10";
+        } else if (step.status === 'error') {
+          badgeClass = "border-red-300 text-red-600 bg-red-50 dark:border-red-500 dark:text-red-400 dark:bg-red-500/10";
+        }
+
+        html += `
+          <div class="flex justify-between items-center">
+            <span class="text-gray-800 dark:text-gray-300 text-[13.5px] tracking-tight">${step.name || 'step'}</span>
+            <span class="px-2 py-0.5 rounded text-[11px] font-medium border ${badgeClass}">${badgeText}</span>
+          </div>
+        `;
+      });
+      
+      document.getElementById('pipelineStepsList').innerHTML = html;
+      
+      // Footer text logic
+      const footer = document.getElementById('pipelineFooter');
+      if (statusStr === 'running') footer.textContent = 'Processando...';
+      else if (statusStr === 'done') footer.textContent = 'Finalizado com sucesso.';
+      else if (statusStr === 'error') footer.textContent = 'Erro na execução.';
+      else footer.textContent = 'Waiting...';
     }
 
-    function applyTheme(theme) {
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        iconSun.classList.remove('hidden');
-        iconMoon.classList.add('hidden');
-      } else {
-        document.documentElement.classList.remove('dark');
-        iconMoon.classList.remove('hidden');
-        iconSun.classList.add('hidden');
-      }
-      localStorage.setItem('theme', theme);
-    }
-
-    themeToggleBtn.addEventListener('click', () => {
-      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
-    });
-
-    // Inicializar tema
-    applyTheme(getTheme());
-
-    // ----------------------------------------------------
-    // Lógica de UI - Inputs Personalizados (Sources & N)
-    // ----------------------------------------------------
-    
-    // Atualiza o visual dos botões de fontes (Toggles)
+    // Lógica Visual - Botões de Fontes
     const sourceCheckboxes = document.querySelectorAll('.source-cb');
     function updateSourcesUI() {
       sourceCheckboxes.forEach(cb => {
-        const label = cb.nextElementSibling;
+        const span = cb.nextElementSibling;
         if (cb.checked) {
-          label.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-200');
-          label.classList.remove('text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'bg-transparent', 'shadow-none');
+          span.classList.remove('bg-transparent', 'border-gray-300', 'text-gray-500', 'dark:border-gray-700', 'dark:text-gray-400');
+          span.classList.add('bg-brand-50', 'border-brand-200', 'text-brand-600', 'dark:bg-brand-500/10', 'dark:border-brand-500/30', 'dark:text-brand-400');
         } else {
-          label.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-200');
-          label.classList.add('text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'bg-transparent', 'shadow-none');
+          span.classList.add('bg-transparent', 'border-gray-300', 'text-gray-500', 'dark:border-gray-700', 'dark:text-gray-400');
+          span.classList.remove('bg-brand-50', 'border-brand-200', 'text-brand-600', 'dark:bg-brand-500/10', 'dark:border-brand-500/30', 'dark:text-brand-400');
         }
       });
     }
     sourceCheckboxes.forEach(cb => cb.addEventListener('change', updateSourcesUI));
 
-    // ----------------------------------------------------
-    // Funcionalidades da Aplicação
-    // ----------------------------------------------------
-    
+    // Inicialização do documento
+    document.addEventListener('DOMContentLoaded', () => {
+      updateSourcesUI();
+      renderPipeline(null, null, 'idle'); // Renderiza o estado inicial do pipeline
+    });
+
+    // Prompts de Exemplo
     const samplePrompts = [
-      "Faça um rascunho sobre o estado atual da computação quântica. Inclua: 1) principais desenvolvimentos, 2) abordagens metodológicas, 3) principais desafios.",
-      "Escreva um artigo detalhado sobre os impactos da inteligência artificial na educação moderna, focando em ferramentas de tutoria personalizada.",
-      "Resuma as descobertas recentes em baterias de estado sólido para veículos elétricos. Foque em segurança e densidade energética."
+      "Escreva um rascunho sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto.",
+      "Crie um relatório acadêmico analisando o impacto da inteligência artificial generativa na automação de processos jurídicos corporativos.",
+      "Resuma os avanços de 2024 na tecnologia de baterias de estado sólido, focando especificamente nos desafios térmicos e de densidade."
     ];
     let samplePromptIndex = 0;
     
@@ -303,35 +353,43 @@
       return Array.from(document.querySelectorAll('.source-cb:checked')).map(cb => cb.value);
     }
 
+    // Controles da UI
     function disableUI(disabled) {
       document.getElementById('runBtn').disabled = disabled;
       document.getElementById('promptInput').disabled = disabled;
+      document.getElementById('stopBtn').disabled = !disabled;
+      
+      const runBtn = document.getElementById('runBtn');
       if (disabled) {
-        document.getElementById('runBtn').innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Iniciando...`;
+        runBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Executando...`;
+        document.getElementById('statusBadgeSidebar').textContent = 'Executando';
+        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400 px-2.5 py-1 rounded border border-brand-200 dark:border-brand-500/30';
       } else {
-        document.getElementById('runBtn').innerHTML = `Pesquisar <i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        runBtn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i> Executar`;
+        document.getElementById('statusBadgeSidebar').textContent = 'Ocioso';
+        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700';
       }
       lucide.createIcons();
     }
 
-    function resetUI() {
-      // Voltar para a tela inicial apenas se não estiver processando
-      if(pollInterval) return; 
-      
-      document.getElementById('setup-view').classList.remove('hidden');
-      document.getElementById('workspace-view').classList.add('hidden');
-      document.getElementById('promptInput').value = '';
-      currentTaskId = null;
-      finalReportMarkdown = "";
-      lastRenderedStepsKey = "";
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+        disableUI(false);
+        document.getElementById('statusBadgeSidebar').textContent = 'Parado';
+        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-500/30';
+        renderPipeline(null, currentTaskId, 'idle'); // Volta pro estado waiting
+      }
     }
 
+    // Submissão
     function submitPrompt() {
       const prompt = document.getElementById('promptInput').value.trim();
       const sources = getSelectedSources();
       
       if (!prompt) {
-        alert("Por favor, digite um tópico para pesquisa.");
+        alert("Por favor, digite um prompt para iniciar.");
         return;
       }
       if (sources.length === 0) {
@@ -341,13 +399,11 @@
 
       const payload = {
         prompt: prompt,
-        sources: sources,
-        n_articles: 10 // Valor fixo exigido pelo modelo do backend atual
+        sources: sources
       };
 
       disableUI(true);
 
-      // Chamada para a API do backend (FastAPI)
       fetch(`${API_BASE_URL}/generate_report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -357,18 +413,14 @@
       .then(data => {
         currentTaskId = data.task_id;
         
-        // Transição de tela
-        document.getElementById('setup-view').classList.add('hidden');
-        document.getElementById('workspace-view').classList.remove('hidden');
+        lastRenderedStepsKey = "";
+        renderPipeline(null, currentTaskId, 'running'); // Mostra todos como pending logo de cara
         
-        document.getElementById('articlePromptTitle').textContent = prompt;
-        document.getElementById('timelineFeed').innerHTML = '';
-        
-        // Limpar Article Pane
+        document.getElementById('articleBadge').textContent = 'Iniciando agentes...';
         document.getElementById('articlePane').innerHTML = `
-          <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 mt-20">
-            <i data-lucide="loader-2" class="w-10 h-10 mb-4 animate-spin text-brand-500"></i>
-            <p class="animate-pulse">Analisando o escopo da pesquisa...</p>
+          <div class="h-full flex flex-col items-center justify-center text-center text-gray-500 mt-20">
+            <i data-lucide="loader-2" class="w-8 h-8 mb-4 animate-spin text-brand-500"></i>
+            <p class="animate-pulse">Configurando agentes e ambiente de pesquisa...</p>
           </div>
         `;
         lucide.createIcons();
@@ -383,26 +435,7 @@
       });
     }
 
-    // Traduz status do inglês (backend) para português visual
-    function getStatusConfig(status) {
-      switch(status) {
-        case 'done': return { color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', icon: 'check', text: 'Concluído', border: 'border-emerald-200 dark:border-emerald-500/30' };
-        case 'running': return { color: 'text-brand-500', bg: 'bg-brand-100 dark:bg-brand-500/20', icon: 'loader-2', text: 'Executando...', border: 'border-brand-200 dark:border-brand-500/30' };
-        case 'error': return { color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-500/20', icon: 'x', text: 'Erro', border: 'border-red-200 dark:border-red-500/30' };
-        default: return { color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800', icon: 'circle', text: 'Pendente', border: 'border-gray-200 dark:border-gray-700' };
-      }
-    }
-
-    function translateStepName(name) {
-      const map = {
-        'extracting informations': 'Análise da Configuração',
-        'research agent': 'Coleta de Informações',
-        'write agent': 'Redação do Rascunho',
-        'editor agent': 'Revisão e Formatação Final'
-      };
-      return map[name.toLowerCase()] || name;
-    }
-
+    // Polling e Atualização
     function fetchProgress() {
       if (!currentTaskId) return;
 
@@ -412,54 +445,28 @@
           const result = data.result || {};
           const steps = result.steps || [];
           
-          // 1. Renderizar Timeline (apenas se houver mudanças para evitar recriar DOM desnecessário)
-          const currentKey = steps.map(s => `${s.name}-${s.status}-${s.detail}`).join('|');
-          
+          // 1. Atualizar Pipeline
+          const currentKey = steps.map(s => `${s.name}-${s.status}`).join('|');
           if (currentKey !== lastRenderedStepsKey) {
             lastRenderedStepsKey = currentKey;
-            
-            let timelineHTML = `<div class="relative border-l-2 border-gray-100 dark:border-gray-800 ml-3 md:ml-4 space-y-6 pb-4">`;
-            
-            steps.forEach((step, index) => {
-              const statusCfg = getStatusConfig(step.status);
-              const title = translateStepName(step.name || '');
-              const detail = step.detail || '';
-              
-              const isSpinning = step.status === 'running' ? 'animate-spin' : '';
-              const pulseClass = step.status === 'running' ? 'animate-subtle-pulse' : '';
-
-              timelineHTML += `
-                <div class="relative pl-6 md:pl-8 ${pulseClass}">
-                  <!-- Indicador -->
-                  <div class="absolute -left-[13px] top-1 rounded-full w-6 h-6 flex items-center justify-center ${statusCfg.bg} ${statusCfg.border} border">
-                    <i data-lucide="${statusCfg.icon}" class="w-3.5 h-3.5 ${statusCfg.color} ${isSpinning}"></i>
-                  </div>
-                  
-                  <!-- Conteúdo -->
-                  <div class="flex flex-col">
-                    <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">${escapeHtml(title)}</h4>
-                    <span class="text-xs font-semibold px-2 py-0.5 rounded w-max mb-2 ${statusCfg.bg} ${statusCfg.color}">
-                      ${statusCfg.text}
-                    </span>
-                    ${detail ? `<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap mt-1 leading-relaxed">${escapeHtml(detail)}</p>` : ''}
-                  </div>
-                </div>
-              `;
-            });
-            timelineHTML += `</div>`;
-            
-            document.getElementById('timelineFeed').innerHTML = timelineHTML;
-            lucide.createIcons(); // Recriar ícones na timeline
+            renderPipeline(steps, currentTaskId, data.status);
           }
 
-          // Verificar se parou
+          // Verificar conclusão
           if (data.status === 'done' || data.status === 'error') {
             clearInterval(pollInterval);
             pollInterval = null;
             disableUI(false);
+            if (data.status === 'done') {
+              document.getElementById('statusBadgeSidebar').textContent = 'Concluído';
+              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2.5 py-1 rounded border border-emerald-200 dark:border-emerald-500/30';
+            } else {
+              document.getElementById('statusBadgeSidebar').textContent = 'Erro';
+              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2.5 py-1 rounded border border-red-200 dark:border-red-500/30';
+            }
           }
 
-          // 2. Atualizar o Artigo
+          // 2. Atualizar a Prévia (Artigo)
           const finalMd = result.article_markdown;
           const draftMd = result.draft_markdown;
           const researchMd = result.research_text;
@@ -469,68 +476,80 @@
           const badge = document.getElementById('articleBadge');
           const pane = document.getElementById('articlePane');
           
-          // Lógica de labels e botões
           if (finalMd) {
             badge.textContent = "Artigo Finalizado";
-            badge.className = "text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-500";
+            badge.className = "text-xs font-medium text-emerald-600 dark:text-emerald-400";
+            document.getElementById('btnCopyMd').disabled = false;
             document.getElementById('btnMd').disabled = false;
             document.getElementById('btnHtml').disabled = false;
+            document.getElementById('btnPdf').disabled = false;
           } else if (draftMd) {
             badge.textContent = "Gerando Rascunho...";
-            badge.className = "text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-500 animate-pulse";
+            badge.className = "text-xs font-medium text-amber-600 dark:text-amber-400 animate-pulse";
           } else if (researchMd) {
             badge.textContent = "Coletando Dados...";
-            badge.className = "text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-500 animate-pulse";
+            badge.className = "text-xs font-medium text-brand-600 dark:text-brand-400 animate-pulse";
           } else if (data.status === 'error') {
             badge.textContent = "Falha na Tarefa";
-            badge.className = "text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-500";
+            badge.className = "text-xs font-medium text-red-600 dark:text-red-400";
           }
 
-          // Renderizar Markdown
           if (contentMd && finalReportMarkdown !== contentMd) {
             finalReportMarkdown = contentMd;
             pane.innerHTML = marked.parse(contentMd);
           }
         })
-        .catch(err => console.error("Erro ao dar poll na tarefa:", err));
+        .catch(err => console.error("Erro no polling:", err));
     }
 
-    function escapeHtml(text) {
-      if (!text) return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
+    // Ações de Exportação
+    async function copyMD() {
+      if(!finalReportMarkdown) return;
+      try {
+        await navigator.clipboard.writeText(finalReportMarkdown);
+        alert("Markdown copiado para a área de clipboard!");
+      } catch (err) {
+        const textArea = document.createElement("textarea");
+        textArea.value = finalReportMarkdown;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          alert("Markdown copiado para a área de clipboard!");
+        } catch (err) {
+          alert("Não foi possível copiar automaticamente.");
+        }
+        document.body.removeChild(textArea);
+      }
     }
 
-    // Downloads
     function downloadMarkdown() {
       if(!finalReportMarkdown) return;
       const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `relatorio_${currentTaskId}.md`;
+      link.download = `pesquisa_${currentTaskId}.md`;
       link.click();
     }
 
     function downloadHTML() {
       if(!finalReportMarkdown) return;
       
-      // Criar um HTML bonitinho para o download
       const htmlBody = marked.parse(finalReportMarkdown);
       const fullHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Relatório de Pesquisa</title>
+        <title>Pesquisa Gerada</title>
         <style>
-          body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
-          h1, h2, h3 { color: #111; }
-          a { color: #2563eb; }
-          code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
+          body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 2rem; background: #f9fafb; }
+          h1, h2, h3 { color: #111827; }
+          a { color: #4f46e5; text-decoration: none; }
+          code { background: #e5e7eb; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
           pre code { background: none; padding: 0; }
-          pre { background: #f1f5f9; padding: 1rem; border-radius: 8px; overflow-x: auto; }
-          blockquote { border-left: 4px solid #cbd5e1; margin-left: 0; padding-left: 1rem; color: #64748b; }
+          pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+          blockquote { border-left: 4px solid #9ca3af; margin-left: 0; padding-left: 1rem; color: #4b5563; font-style: italic; }
         </style>
       </head>
       <body>
@@ -542,8 +561,12 @@
       const blob = new Blob([fullHtml], { type: 'text/html' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `relatorio_${currentTaskId}.html`;
+      link.download = `pesquisa_${currentTaskId}.html`;
       link.click();
+    }
+
+    function downloadPDF() {
+      window.print();
     }
   </script>
 </body>
