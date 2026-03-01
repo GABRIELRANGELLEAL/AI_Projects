@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="pt-BR" class="antialiased">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Agente de Pesquisa IA</title>
+
+  <!-- Tailwind CSS & Typography Plugin -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  
+  <!-- Configuração do Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Marked.js para Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Transições suaves gerais */
+    body { transition: background-color 0.3s ease, color 0.3s ease; }
+    
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Animação de pulso para etapa ativa */
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .animate-subtle-pulse { animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+    /* Hide scrollbar for the segmented control */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 dark:bg-[#0f1115] dark:text-gray-100 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+  
+  <!-- Topbar -->
+  <header class="sticky top-0 z-40 bg-gray-50/80 dark:bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="resetUI()">
+        <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white shadow-sm">
+          <i data-lucide="microscope" class="w-5 h-5"></i>
+        </div>
+        <span class="font-bold text-lg tracking-tight">Research<span class="text-brand-600 dark:text-brand-500">Agent</span></span>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <span class="hidden md:inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+          FastAPI + Postgres
+        </span>
+        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-gray-400 focus:outline-none" aria-label="Alternar Tema">
+          <i data-lucide="moon" id="icon-moon" class="w-5 h-5 hidden"></i>
+          <i data-lucide="sun" id="icon-sun" class="w-5 h-5 hidden"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow flex flex-col w-full relative">
+    
+    <!-- VIEW 1: Configuração / Setup -->
+    <div id="setup-view" class="w-full max-w-3xl mx-auto px-4 sm:px-6 flex-grow flex flex-col justify-center py-12 transition-all duration-500 ease-in-out">
+      
+      <div class="text-center mb-8">
+        <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">O que vamos pesquisar hoje?</h1>
+        <p class="text-gray-500 dark:text-gray-400 text-lg">Defina o tópico, escolha suas fontes e deixe o agente trabalhar.</p>
+      </div>
+
+      <!-- Main Input Card -->
+      <div class="bg-white dark:bg-[#16181d] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-2 transition-all focus-within:ring-2 focus-within:ring-brand-500 focus-within:border-brand-500">
+        <textarea 
+          id="promptInput" 
+          rows="3" 
+          class="w-full bg-transparent border-0 resize-none focus:ring-0 p-4 text-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none"
+          placeholder="Descreva sua pergunta de pesquisa com alguns detalhes (contexto, restrições, o que você espera)..."
+        ></textarea>
+        
+        <div class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 dark:border-gray-800/60 p-3 gap-4">
+          
+          <!-- Quick Configs -->
+          <div class="flex items-center gap-4 w-full sm:w-auto overflow-x-auto no-scrollbar">
+            
+            <!-- Fontes (Toggles) -->
+            <div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 p-1.5 rounded-lg border border-gray-200 dark:border-gray-700/50">
+              <label class="cursor-pointer relative">
+                <input type="checkbox" value="tavily" class="source-cb sr-only" checked>
+                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
+                  Tavily
+                </span>
+              </label>
+              <label class="cursor-pointer relative">
+                <input type="checkbox" value="wikipedia" class="source-cb sr-only" checked>
+                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
+                  Wikipedia
+                </span>
+              </label>
+              <label class="cursor-pointer relative">
+                <input type="checkbox" value="arxiv" class="source-cb sr-only" checked>
+                <span class="source-label inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white dark:bg-gray-700 shadow-sm text-gray-800 dark:text-gray-200">
+                  arXiv
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button type="button" onclick="insertSamplePrompt()" class="p-2 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors tooltip-trigger" title="Inserir exemplo">
+              <i data-lucide="wand-2" class="w-5 h-5"></i>
+            </button>
+            <button id="runBtn" onclick="submitPrompt()" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-2 rounded-lg transition-colors focus:ring-4 focus:ring-brand-500/20">
+              Pesquisar
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="text-center mt-6">
+        <p class="text-sm text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1">
+          <i data-lucide="info" class="w-4 h-4"></i>
+          O modelo tentará coletar as informações baseadas na sua escolha de fontes.
+        </p>
+      </div>
+    </div>
+
+
+    <!-- VIEW 2: Workspace (Split View) -->
+    <div id="workspace-view" class="hidden w-full max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-6 h-[calc(100vh-64px)]">
+      <div class="flex flex-col lg:flex-row gap-6 h-full">
+        
+        <!-- Sidebar: Steps / Timeline -->
+        <div class="w-full lg:w-1/3 flex flex-col bg-white dark:bg-[#16181d] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden flex-shrink-0">
+          <div class="p-4 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#16181d]/50">
+            <h3 class="font-semibold flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4 text-brand-500"></i>
+              Progresso da Tarefa
+            </h3>
+          </div>
+          <div class="flex-grow overflow-y-auto p-5" id="timelineFeed">
+             <!-- Timeline items injetados via JS -->
+          </div>
+        </div>
+
+        <!-- Main Content: Article -->
+        <div class="w-full lg:w-2/3 flex flex-col bg-white dark:bg-[#16181d] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden h-[60vh] lg:h-auto">
+          
+          <!-- Article Toolbar -->
+          <div class="p-3 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-[#16181d]/50 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-col">
+              <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500" id="articleBadge">Aguardando</span>
+              <span class="text-sm text-gray-600 dark:text-gray-300 truncate max-w-[250px] sm:max-w-sm" id="articlePromptTitle">...</span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <button onclick="downloadMarkdown()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50" id="btnMd" disabled>
+                <i data-lucide="download" class="w-4 h-4"></i>
+                .MD
+              </button>
+              <button onclick="downloadHTML()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50" id="btnHtml" disabled>
+                <i data-lucide="code" class="w-4 h-4"></i>
+                .HTML
+              </button>
+            </div>
+          </div>
+
+          <!-- Article Content -->
+          <div class="flex-grow overflow-y-auto p-6 md:p-10 relative bg-white dark:bg-[#0f1115]/30">
+            <div id="articlePane" class="prose prose-slate md:prose-base lg:prose-lg dark:prose-invert max-w-3xl mx-auto">
+              <!-- Blank state -->
+              <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 dark:text-gray-600 mt-20">
+                <i data-lucide="file-text" class="w-16 h-16 mb-4 opacity-50"></i>
+                <p>O rascunho e o artigo final aparecerão aqui.</p>
+                <p class="text-sm mt-1 opacity-70">Acompanhe o progresso no painel lateral.</p>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Iniciar ícones Lucide
+    lucide.createIcons();
+
+    // Configuração da API para evitar erro de parse de URL no modo Preview/Local
+    // A validação agora checa explicitamente se estamos em um protocolo blob: (gerado pelo iframe de preview)
+    const isPreview = window.location.protocol === 'file:' || window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
+    const API_BASE_URL = isPreview ? 'http://localhost:8000' : '';
+
+    // Estado da Aplicação
+    let currentTaskId = null;
+    let pollInterval = null;
+    let finalReportMarkdown = "";
+    let lastRenderedStepsKey = "";
+
+    // ----------------------------------------------------
+    // Lógica de UI - Tema Claro/Escuro
+    // ----------------------------------------------------
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const iconSun = document.getElementById('icon-sun');
+    const iconMoon = document.getElementById('icon-moon');
+
+    function getTheme() {
+      if (localStorage.getItem('theme')) {
+        return localStorage.getItem('theme');
+      }
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function applyTheme(theme) {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        iconSun.classList.remove('hidden');
+        iconMoon.classList.add('hidden');
+      } else {
+        document.documentElement.classList.remove('dark');
+        iconMoon.classList.remove('hidden');
+        iconSun.classList.add('hidden');
+      }
+      localStorage.setItem('theme', theme);
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+
+    // Inicializar tema
+    applyTheme(getTheme());
+
+    // ----------------------------------------------------
+    // Lógica de UI - Inputs Personalizados (Sources & N)
+    // ----------------------------------------------------
+    
+    // Atualiza o visual dos botões de fontes (Toggles)
+    const sourceCheckboxes = document.querySelectorAll('.source-cb');
+    function updateSourcesUI() {
+      sourceCheckboxes.forEach(cb => {
+        const label = cb.nextElementSibling;
+        if (cb.checked) {
+          label.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-200');
+          label.classList.remove('text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'bg-transparent', 'shadow-none');
+        } else {
+          label.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-800', 'dark:text-gray-200');
+          label.classList.add('text-gray-500', 'hover:text-gray-700', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'bg-transparent', 'shadow-none');
+        }
+      });
+    }
+    sourceCheckboxes.forEach(cb => cb.addEventListener('change', updateSourcesUI));
+
+    // ----------------------------------------------------
+    // Funcionalidades da Aplicação
+    // ----------------------------------------------------
+    
+    const samplePrompts = [
+      "Faça um rascunho sobre o estado atual da computação quântica. Inclua: 1) principais desenvolvimentos, 2) abordagens metodológicas, 3) principais desafios.",
+      "Escreva um artigo detalhado sobre os impactos da inteligência artificial na educação moderna, focando em ferramentas de tutoria personalizada.",
+      "Resuma as descobertas recentes em baterias de estado sólido para veículos elétricos. Foque em segurança e densidade energética."
+    ];
+    let samplePromptIndex = 0;
+    
+    function insertSamplePrompt() {
+      const input = document.getElementById('promptInput');
+      input.value = samplePrompts[samplePromptIndex % samplePrompts.length];
+      samplePromptIndex++;
+      input.focus();
+    }
+
+    function getSelectedSources() {
+      return Array.from(document.querySelectorAll('.source-cb:checked')).map(cb => cb.value);
+    }
+
+    function disableUI(disabled) {
+      document.getElementById('runBtn').disabled = disabled;
+      document.getElementById('promptInput').disabled = disabled;
+      if (disabled) {
+        document.getElementById('runBtn').innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Iniciando...`;
+      } else {
+        document.getElementById('runBtn').innerHTML = `Pesquisar <i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      }
+      lucide.createIcons();
+    }
+
+    function resetUI() {
+      // Voltar para a tela inicial apenas se não estiver processando
+      if(pollInterval) return; 
+      
+      document.getElementById('setup-view').classList.remove('hidden');
+      document.getElementById('workspace-view').classList.add('hidden');
+      document.getElementById('promptInput').value = '';
+      currentTaskId = null;
+      finalReportMarkdown = "";
+      lastRenderedStepsKey = "";
+    }
+
+    function submitPrompt() {
+      const prompt = document.getElementById('promptInput').value.trim();
+      const sources = getSelectedSources();
+      
+      if (!prompt) {
+        alert("Por favor, digite um tópico para pesquisa.");
+        return;
+      }
+      if (sources.length === 0) {
+        alert("Selecione pelo menos uma fonte.");
+        return;
+      }
+
+      const payload = {
+        prompt: prompt,
+        sources: sources,
+        n_articles: 10 // Valor fixo exigido pelo modelo do backend atual
+      };
+
+      disableUI(true);
+
+      // Chamada para a API do backend (FastAPI)
+      fetch(`${API_BASE_URL}/generate_report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        currentTaskId = data.task_id;
+        
+        // Transição de tela
+        document.getElementById('setup-view').classList.add('hidden');
+        document.getElementById('workspace-view').classList.remove('hidden');
+        
+        document.getElementById('articlePromptTitle').textContent = prompt;
+        document.getElementById('timelineFeed').innerHTML = '';
+        
+        // Limpar Article Pane
+        document.getElementById('articlePane').innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 mt-20">
+            <i data-lucide="loader-2" class="w-10 h-10 mb-4 animate-spin text-brand-500"></i>
+            <p class="animate-pulse">Analisando o escopo da pesquisa...</p>
+          </div>
+        `;
+        lucide.createIcons();
+
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(fetchProgress, 2000);
+      })
+      .catch((err) => {
+        console.error(err);
+        disableUI(false);
+        alert("Erro ao conectar com a API.");
+      });
+    }
+
+    // Traduz status do inglês (backend) para português visual
+    function getStatusConfig(status) {
+      switch(status) {
+        case 'done': return { color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-500/20', icon: 'check', text: 'Concluído', border: 'border-emerald-200 dark:border-emerald-500/30' };
+        case 'running': return { color: 'text-brand-500', bg: 'bg-brand-100 dark:bg-brand-500/20', icon: 'loader-2', text: 'Executando...', border: 'border-brand-200 dark:border-brand-500/30' };
+        case 'error': return { color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-500/20', icon: 'x', text: 'Erro', border: 'border-red-200 dark:border-red-500/30' };
+        default: return { color: 'text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800', icon: 'circle', text: 'Pendente', border: 'border-gray-200 dark:border-gray-700' };
+      }
+    }
+
+    function translateStepName(name) {
+      const map = {
+        'extracting informations': 'Análise da Configuração',
+        'research agent': 'Coleta de Informações',
+        'write agent': 'Redação do Rascunho',
+        'editor agent': 'Revisão e Formatação Final'
+      };
+      return map[name.toLowerCase()] || name;
+    }
+
+    function fetchProgress() {
+      if (!currentTaskId) return;
+
+      fetch(`${API_BASE_URL}/tasks/${currentTaskId}`)
+        .then(res => res.json())
+        .then(data => {
+          const result = data.result || {};
+          const steps = result.steps || [];
+          
+          // 1. Renderizar Timeline (apenas se houver mudanças para evitar recriar DOM desnecessário)
+          const currentKey = steps.map(s => `${s.name}-${s.status}-${s.detail}`).join('|');
+          
+          if (currentKey !== lastRenderedStepsKey) {
+            lastRenderedStepsKey = currentKey;
+            
+            let timelineHTML = `<div class="relative border-l-2 border-gray-100 dark:border-gray-800 ml-3 md:ml-4 space-y-6 pb-4">`;
+            
+            steps.forEach((step, index) => {
+              const statusCfg = getStatusConfig(step.status);
+              const title = translateStepName(step.name || '');
+              const detail = step.detail || '';
+              
+              const isSpinning = step.status === 'running' ? 'animate-spin' : '';
+              const pulseClass = step.status === 'running' ? 'animate-subtle-pulse' : '';
+
+              timelineHTML += `
+                <div class="relative pl-6 md:pl-8 ${pulseClass}">
+                  <!-- Indicador -->
+                  <div class="absolute -left-[13px] top-1 rounded-full w-6 h-6 flex items-center justify-center ${statusCfg.bg} ${statusCfg.border} border">
+                    <i data-lucide="${statusCfg.icon}" class="w-3.5 h-3.5 ${statusCfg.color} ${isSpinning}"></i>
+                  </div>
+                  
+                  <!-- Conteúdo -->
+                  <div class="flex flex-col">
+                    <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">${escapeHtml(title)}</h4>
+                    <span class="text-xs font-semibold px-2 py-0.5 rounded w-max mb-2 ${statusCfg.bg} ${statusCfg.color}">
+                      ${statusCfg.text}
+                    </span>
+                    ${detail ? `<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap mt-1 leading-relaxed">${escapeHtml(detail)}</p>` : ''}
+                  </div>
+                </div>
+              `;
+            });
+            timelineHTML += `</div>`;
+            
+            document.getElementById('timelineFeed').innerHTML = timelineHTML;
+            lucide.createIcons(); // Recriar ícones na timeline
+          }
+
+          // Verificar se parou
+          if (data.status === 'done' || data.status === 'error') {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            disableUI(false);
+          }
+
+          // 2. Atualizar o Artigo
+          const finalMd = result.article_markdown;
+          const draftMd = result.draft_markdown;
+          const researchMd = result.research_text;
+
+          let contentMd = finalMd || draftMd || researchMd || '';
+          
+          const badge = document.getElementById('articleBadge');
+          const pane = document.getElementById('articlePane');
+          
+          // Lógica de labels e botões
+          if (finalMd) {
+            badge.textContent = "Artigo Finalizado";
+            badge.className = "text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-500";
+            document.getElementById('btnMd').disabled = false;
+            document.getElementById('btnHtml').disabled = false;
+          } else if (draftMd) {
+            badge.textContent = "Gerando Rascunho...";
+            badge.className = "text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-500 animate-pulse";
+          } else if (researchMd) {
+            badge.textContent = "Coletando Dados...";
+            badge.className = "text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-500 animate-pulse";
+          } else if (data.status === 'error') {
+            badge.textContent = "Falha na Tarefa";
+            badge.className = "text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-500";
+          }
+
+          // Renderizar Markdown
+          if (contentMd && finalReportMarkdown !== contentMd) {
+            finalReportMarkdown = contentMd;
+            pane.innerHTML = marked.parse(contentMd);
+          }
+        })
+        .catch(err => console.error("Erro ao dar poll na tarefa:", err));
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Downloads
+    function downloadMarkdown() {
+      if(!finalReportMarkdown) return;
+      const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `relatorio_${currentTaskId}.md`;
+      link.click();
+    }
+
+    function downloadHTML() {
+      if(!finalReportMarkdown) return;
+      
+      // Criar um HTML bonitinho para o download
+      const htmlBody = marked.parse(finalReportMarkdown);
+      const fullHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Relatório de Pesquisa</title>
+        <style>
+          body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 2rem; }
+          h1, h2, h3 { color: #111; }
+          a { color: #2563eb; }
+          code { background: #f1f5f9; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; }
+          pre code { background: none; padding: 0; }
+          pre { background: #f1f5f9; padding: 1rem; border-radius: 8px; overflow-x: auto; }
+          blockquote { border-left: 4px solid #cbd5e1; margin-left: 0; padding-left: 1rem; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        ${htmlBody}
+      </body>
+      </html>
+      `;
+
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `relatorio_${currentTaskId}.html`;
+      link.click();
+    }
+  </script>
+</body>
+</html>

@@ -84,23 +84,24 @@
     .theme-toggle-top { position: fixed; top: 1rem; right: 1rem; z-index: 1030; }
 
     /* SPLIT VIEW */
-    .split-root {
+    .split-root{
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(420px, 1fr) minmax(520px, 1.2fr);
       gap: 16px;
       align-items: start;
     }
-    @media (max-width: 992px) {
-      .split-root { grid-template-columns: 1fr; }
+
+    /* stack only on real small screens */
+    @media (max-width: 768px){
+      .split-root{ grid-template-columns: 1fr; }
     }
-    .split-left {
-      min-height: 60vh;
-    }
-    .split-right {
+
+    .split-right{
       position: sticky;
       top: 84px;
       align-self: start;
     }
+
     .article-pane {
       border: 1px solid var(--border);
       border-radius: 14px;
