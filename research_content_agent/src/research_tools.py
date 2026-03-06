@@ -12,6 +12,7 @@ import time
 import tempfile
 import xml.etree.ElementTree as ET
 from io import BytesIO
+import wikipedia
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -58,7 +59,6 @@ session = _build_session()
 
 
 # ----- Funções Utilitárias para Tratamento de PDFs e Textos -----
-
 def ensure_pdf_url(abs_or_pdf_url: str) -> str:
     """
     Garante que a URL do arXiv aponte diretamente para o arquivo PDF 
@@ -141,7 +141,6 @@ def maybe_save_pdf(pdf_bytes: bytes, dest_dir: str, filename: str) -> str:
 
 
 # ----- Ferramenta de Pesquisa: arXiv -----
-
 def arxiv_search_tool(
     query: str,
     max_results: int = 3,
@@ -262,10 +261,8 @@ arxiv_tool_def = {
 
 
 # ----- Ferramenta de Pesquisa: Tavily -----
-
 from dotenv import load_dotenv
 from tavily import TavilyClient
-
 load_dotenv()  # Carrega as variáveis de ambiente de um arquivo .env
 
 def tavily_search_tool(
@@ -344,9 +341,6 @@ tavily_tool_def = {
 
 
 # ----- Ferramenta de Pesquisa: Wikipedia -----
-
-import wikipedia
-
 def wikipedia_search_tool(query: str, sentences: int = 5) -> List[Dict]:
     """
     Busca na Wikipedia e retorna um resumo do artigo correspondente.

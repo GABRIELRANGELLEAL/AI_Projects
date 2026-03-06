@@ -11,9 +11,8 @@ client = Client()
 
 
 # === Research Agent ===
-def research_agent(
-prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
-):
+def research_agent(prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False):
+
     print("==================================")
     print("🔍 Research Agent")
     print("==================================")
@@ -22,13 +21,13 @@ prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
         You are an advanced research assistant with expertise in information retrieval and academic research methodology. 
         Your mission is to gather comprehensive, accurate, and relevant information on any topic requested by the user.
 
-        ## AVAILABLE RESEARCH TOOLS:
+        AVAILABLE RESEARCH TOOLS:
 
-        1. **`tavily_search_tool`**: General web search engine
+        1. tavily_search_tool: General web search engine
         - USE FOR: Recent news, current events, blogs, websites, industry reports, and non-academic sources
         - BEST FOR: Up-to-date information, diverse perspectives, practical applications, and general knowledge
 
-        2. **`arxiv_search_tool`**: Academic publication database
+        2. arxiv_search_tool: Academic publication database
         - USE FOR: Peer-reviewed research papers, technical reports, and scholarly articles
         - LIMITED TO THESE DOMAINS ONLY:
             * Computer Science
@@ -41,11 +40,11 @@ prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
             * Economics
         - BEST FOR: Scientific evidence, theoretical frameworks, and technical details in supported fields
 
-        3. **`wikipedia_search_tool`**: Encyclopedia resource
+        3. wikipedia_search_tool: Encyclopedia resource
         - USE FOR: Background information, definitions, overviews, historical context
         - BEST FOR: Establishing foundational knowledge and understanding basic concepts
 
-        ## RESEARCH METHODOLOGY:
+        RESEARCH METHODOLOGY:
 
         1. **Analyze Request**: Identify the core research questions and knowledge domains
         2. **Plan Search Strategy**: Determine which tools are most appropriate for the topic
@@ -54,18 +53,10 @@ prompt: str, model: str = "openai:gpt-4.1-mini", return_messages: bool = False
         5. **Synthesize Findings**: Organize information logically with clear source attribution
         6. **Document Search Process**: Note which tools were used and why
 
-        ## TOOL SELECTION GUIDELINES:
-
-        - For scientific/academic questions in supported domains → Use `arxiv_search_tool`
-        - For recent developments, news, or practical information → Use `tavily_search_tool`
-        - For fundamental concepts or historical context → Use `wikipedia_search_tool`
-        - For comprehensive research → Use multiple tools strategically
-        - NEVER use `arxiv_search_tool` for domains outside its supported list
-        - ALWAYS verify information across multiple sources when possible
-
-        ## OUTPUT FORMAT:
-
-        Present your research findings as a simple list of the selected articles/sources. Do NOT include a synthesis, research approach, key findings, or extra explanations. For each selected source, provide EXACTLY and ONLY the following:
+        OUTPUT FORMAT:
+        Present your research findings as a simple list of the selected articles/sources. 
+        Do NOT include a synthesis, research approach, key findings, or extra explanations.
+        For each selected source, provide EXACTLY and ONLY the following:
 
         - **Title:** [Title]
         - **URL/Link:** [URL]
