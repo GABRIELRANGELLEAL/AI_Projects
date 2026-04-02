@@ -142,7 +142,6 @@ def research_agent(
         return str(v).strip() if v is not None else ""
 
     def _published_to_recency_score(published: str) -> float:
-        print('generating the recency score')
         # Map age in years to a 0-10 score with a soft decay:
         # 0y->10, 1y->9, 2y->8, ... 8y->2, 10y+->0 (clamped)
         try:
@@ -157,8 +156,8 @@ def research_agent(
 
         return {t for t in re.findall(r"[a-z0-9]+", text.lower()) if len(t) >= 3}
 
+    
     def _similarity_score(title: str, summary: str) -> float:
-        print('generating the similarity score')
         # Pure token overlap similarity (no heuristics/keywords fallback).
         q = _tokenize(query or "")
         if not q:
@@ -167,8 +166,8 @@ def research_agent(
         overlap = len(q & doc)
         return _clamp_0_10(10.0 * (overlap / max(1, len(q))))
 
+    
     def _quality_score(paper: dict) -> float:
-        print('generating the quality score')
         title = _safe_str(paper.get("title"))
         summary = _safe_str(paper.get("summary"))
         url = _safe_str(paper.get("url"))
@@ -189,6 +188,7 @@ def research_agent(
             s += 1.5
         return _clamp_0_10(s)
 
+    
     def _llm_subjective_relevance_score(
         paper: dict,
         *,
@@ -207,7 +207,6 @@ def research_agent(
             "pdf_pages_used": int,
           }
         """
-        print('generating the subjective llm score')
         if not isinstance(paper, dict):
             return {
                 "score_subjective": 0.0,
@@ -328,6 +327,13 @@ def research_agent(
             ranked.append(out)
             continue
 
+        model_output_subjective_relevance = _llm_subjective_relevance_score(
+            paper,
+            model=subjective_model,
+            max_pages=subjective_max_pages,
+            max_chars=subjective_max_chars,
+        )
+
         title = _safe_str(paper.get("title"))
         summary = _safe_str(paper.get("summary"))
         published = _safe_str(paper.get("published"))
@@ -335,12 +341,7 @@ def research_agent(
         score_similarity = _similarity_score(title, summary)
         score_recency = _published_to_recency_score(published)
         score_quality = _quality_score(paper)
-        score_subj = _llm_subjective_relevance_score(
-            out,
-            model=subjective_model,
-            max_pages=subjective_max_pages,
-            max_chars=subjective_max_chars,
-        )
+        score_subj = model_output_subjective_relevance.get("score_subjective", 0.0)
         rank_score = _clamp_0_10(((score_similarity*2) + score_recency + score_quality+(score_subj*2)) / 4.0)
 
         out = dict(paper)
@@ -348,11 +349,12 @@ def research_agent(
         out["score_similarity"] = round(score_similarity, 2)
         out["score_recency"] = round(score_recency, 2)
         out["score_quality"] = round(score_quality, 2)
-        out["score_subjective"] = float(score_subj.get("score_subjective", 0.0))
-        out["rationale"] = str(score_subj.get("rationale", "")).strip()
+        out["score_subjective"] = float()
+        out["rationale"] = str(model_output_subjective_relevance.get("rationale", "")).strip()
         out["rank_score"] = round(rank_score, 2)
 
         ranked.append(out)
 
+    ranked_sorted = sorted(ranked, key=lambda x: x["rank_score"], reverse=True)
     print(f"Ranked {len(ranked)} papers")
-    return ranked
+    return ranked_sorted

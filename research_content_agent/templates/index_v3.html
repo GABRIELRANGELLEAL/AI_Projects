@@ -134,7 +134,7 @@
                 <textarea 
                 id="promptInput" 
                 class="w-full bg-app-input border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all min-h-[140px] resize-none placeholder-gray-400 dark:placeholder-gray-500 shadow-sm"
-                placeholder="Ex: What evaluation benchmarks could help measure the distance between current large language models and artificial general intelligence (AGI)?"
+                placeholder="Ex: Escreva um resumo sobre a correção de erros na computação quântica focando em topologia..."
                 ></textarea>
             </div>
         </div>
@@ -322,10 +322,9 @@
 
     // Prompts de Exemplo
     const samplePrompts = [
-      "What are the main techniques used in quantum error correction, and what challenges remain unsolved?",
-      "How are diffusion models being used to generate realistic videos, and what are the current limitations of this approach?",
-      "What were the major breakthroughs in multimodal large language models in 2024, particularly related to mathematical reasoning?",
-      "What evaluation benchmarks could help measure the distance between current large language models and artificial general intelligence (AGI)"
+      "Escreva um resumo sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto.",
+      "Crie um relatório acadêmico analisando o impacto dos modelos de difusão na geração de vídeos realistas.",
+      "Resuma os avanços de 2024 na tecnologia de LLMs multimodais focados em raciocínio matemático."
     ];
     let samplePromptIndex = 0;
     
@@ -466,7 +465,7 @@
 
               <!-- Conteúdo Header -->
               <div class="mb-4 pr-10">
-                <a href="${url}" target="_blank" class="text-lg font-bold text-gray-900 dark:text-white leading-snug hover:text-brand-600 dark:hover:text-brand-400 transition-colors" title="${title}">
+                <a href="${url}" target="_blank" class="text-lg font-bold text-gray-900 dark:text-white leading-snug line-clamp-2 hover:text-brand-600 dark:hover:text-brand-400 transition-colors" title="${title}">
                   ${title}
                 </a>
                 <div class="mt-2 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 font-medium">
@@ -496,11 +495,9 @@
               </div>
 
               <!-- Summary & Rationale -->
-              <div class="flex-1 min-h-[220px]">
-                ${rationale ? `<div class="mb-3 px-3 py-2 border-l-2 border-brand-400 bg-brand-50 dark:bg-brand-500/10 text-xs text-gray-700 dark:text-gray-300 italic font-medium">" ${rationale} "</div>` : ''}
-                <div class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed max-h-[360px] overflow-y-auto pr-2">
-                  ${summary}
-                </div>
+              <div class="flex-1">
+                ${rationale ? `<div class="mb-3 px-3 py-2 border-l-2 border-brand-400 bg-brand-50 dark:bg-brand-500/10 text-xs text-gray-700 dark:text-gray-300 italic font-medium line-clamp-2">" ${rationale} "</div>` : ''}
+                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-4 leading-relaxed">${summary}</p>
               </div>
 
               <!-- Footer do Card -->
@@ -542,8 +539,11 @@
 
       currentTaskId = `run_${Date.now().toString(36)}`;
       
-      // Pipeline: começa pendente, vai sendo atualizado conforme eventos do backend
-      const steps = defaultPipelineSteps.map((n) => ({ name: n, status: 'pending' }));
+      // Animação dos passos do pipeline (simulada até que o backend responda)
+      const steps = defaultPipelineSteps.map((n, i) => ({ 
+        name: n, 
+        status: i === 0 ? 'running' : 'pending' 
+      }));
       renderPipeline(steps, currentTaskId, 'running');
 
       document.getElementById('btnCopyMd').disabled = true;
@@ -569,144 +569,71 @@
       if (currentAbortController) currentAbortController.abort();
       currentAbortController = new AbortController();
 
-      // Streaming (SSE) via fetch (ReadableStream) com POST
-      const stepsState = defaultPipelineSteps.map((n) => ({ name: n, status: 'pending' }));
-      let lastStepIndex = -1;
-
-      function setStepRunning(stepIndex) {
-        stepsState.forEach((s, i) => {
-          if (i < stepIndex) s.status = 'done';
-          else if (i === stepIndex) s.status = 'running';
-          else s.status = 'pending';
-        });
-        renderPipeline(stepsState, currentTaskId, 'running');
-      }
-
-      function setAllDone() {
-        stepsState.forEach(s => s.status = 'done');
-        renderPipeline(stepsState, currentTaskId, 'done');
-        const badge = document.getElementById('statusBadgeSidebar');
-        badge.textContent = 'CONCLUÍDO';
-        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded';
-      }
-
-      function setErrorUI(message) {
-        const badge = document.getElementById('statusBadgeSidebar');
-        badge.textContent = 'ERRO';
-        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded';
-        renderPipeline(
-          defaultPipelineSteps.map(n => ({ name: n, status: 'error' })),
-          currentTaskId,
-          'error'
-        );
-        document.getElementById('articlePane').innerHTML = `
-          <div class="p-8 text-center border-2 border-dashed border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-2xl max-w-2xl mx-auto mt-10">
-              <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
-              <h3 class="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Erro ao executar a pesquisa</h3>
-              <p class="text-sm text-red-600 dark:text-red-300 opacity-80">${escapeHtml(message || 'Falha desconhecida.')}</p>
-          </div>
-        `;
-        lucide.createIcons();
-      }
-
-      function parseSseChunk(text) {
-        // Parser simples de SSE: separa por blocos em branco
-        const blocks = text.split(/\n\n+/);
-        const events = [];
-        for (const b of blocks) {
-          const lines = b.split('\n').filter(Boolean);
-          if (!lines.length) continue;
-          let event = 'message';
-          let dataLines = [];
-          for (const line of lines) {
-            if (line.startsWith('event:')) event = line.slice(6).trim();
-            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
-          }
-          const dataStr = dataLines.join('\n');
-          if (dataStr) events.push({ event, dataStr });
-        }
-        return events;
-      }
-
-      fetch(`${API_BASE_URL}/research/stream`, {
+      fetch(`${API_BASE_URL}/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: currentAbortController.signal
       })
       .then(async (res) => {
-        if (!res.ok || !res.body) {
-          const txt = await res.text().catch(() => '');
+        if (!res.ok) {
+          const txt = await res.text();
           throw new Error(txt || `HTTP ${res.status}`);
         }
+        return res.json();
+      })
+      .then(data => {
+        currentAbortController = null;
+        disableUI(false);
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        let buffer = '';
+        renderPipeline(
+          defaultPipelineSteps.map(n => ({ name: n, status: 'done' })),
+          currentTaskId,
+          'done'
+        );
 
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+        const badge = document.getElementById('statusBadgeSidebar');
+        badge.textContent = 'CONCLUÍDO';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded';
 
-          // processa blocos completos
-          const parts = buffer.split(/\n\n+/);
-          buffer = parts.pop() || '';
+        document.getElementById('articleBadge').textContent = `${data.papers_ranked?.length || 0} artigos processados`;
 
-          for (const part of parts) {
-            const events = parseSseChunk(part + "\n\n");
-            for (const ev of events) {
-              let dataObj = null;
-              try { dataObj = JSON.parse(ev.dataStr); } catch (_) { dataObj = null; }
+        // Renderiza as UI novas (Grid)
+        const ranked = data.papers_ranked || [];
+        renderResearchResults(data.sentence, data.keywords, ranked);
 
-              if (ev.event === 'task' && dataObj?.task_id) {
-                currentTaskId = dataObj.task_id;
-                renderPipeline(stepsState, currentTaskId, 'running');
-              }
-
-              if (ev.event === 'progress' && typeof dataObj?.step_index === 'number') {
-                lastStepIndex = dataObj.step_index;
-                setStepRunning(lastStepIndex);
-                if (dataObj?.message) {
-                  document.getElementById('pipelineFooter').textContent = dataObj.message;
-                }
-              }
-
-              if (ev.event === 'result' && dataObj) {
-                currentAbortController = null;
-                disableUI(false);
-                setAllDone();
-
-                document.getElementById('articleBadge').textContent = `${dataObj.papers_ranked?.length || 0} artigos processados`;
-                renderResearchResults(dataObj.sentence, dataObj.keywords, dataObj.papers_ranked || []);
-
-                finalReportMarkdown = buildResultsMarkdown(dataObj);
-                document.getElementById('btnCopyMd').disabled = false;
-                document.getElementById('btnMd').disabled = false;
-                document.getElementById('btnPdf').disabled = false;
-              }
-
-              if (ev.event === 'error') {
-                currentAbortController = null;
-                disableUI(false);
-                setErrorUI(dataObj?.message || 'Erro no backend.');
-              }
-            }
-          }
-        }
+        // Prepara exportação
+        finalReportMarkdown = buildResultsMarkdown(data);
+        document.getElementById('btnCopyMd').disabled = false;
+        document.getElementById('btnMd').disabled = false;
+        document.getElementById('btnPdf').disabled = false;
       })
       .catch((err) => {
         console.error(err);
         currentAbortController = null;
         disableUI(false);
+        
+        const badge = document.getElementById('statusBadgeSidebar');
+        badge.textContent = 'ERRO';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded';
+        
+        renderPipeline(
+          defaultPipelineSteps.map(n => ({ name: n, status: 'error' })),
+          currentTaskId,
+          'error'
+        );
+        
         if (err && err.name === 'AbortError') {
           document.getElementById('articlePane').innerHTML = `<div class="p-8 text-center text-amber-500 font-bold">Operação cancelada pelo usuário.</div>`;
-          const badge = document.getElementById('statusBadgeSidebar');
-          badge.textContent = 'STOPPED';
-          badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2 py-0.5 rounded';
-          renderPipeline(null, currentTaskId, 'idle');
         } else {
-          setErrorUI(err.message || `Verifique se o backend (FastAPI) está rodando no porto correto.`);
+          document.getElementById('articlePane').innerHTML = `
+            <div class="p-8 text-center border-2 border-dashed border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-2xl max-w-2xl mx-auto mt-10">
+                <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
+                <h3 class="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Erro ao executar a pesquisa</h3>
+                <p class="text-sm text-red-600 dark:text-red-300 opacity-80">${err.message || 'Verifique se o backend (FastAPI) está rodando no porto correto.'}</p>
+            </div>
+          `;
+          lucide.createIcons();
         }
       });
     }
@@ -716,7 +643,7 @@
       const sentence = (data && data.sentence) ? data.sentence : '';
       const kw = (data && data.keywords) ? data.keywords : {};
       const phrases = Array.isArray(kw.search_phrases) ? kw.search_phrases : [];
-      const papers = Array.isArray(data.papers_ranked) ? data.papers_ranked : [];
+      const papers = Array.isArray(data.papers_ranked) ? [...data.papers_ranked] : [];
 
       let md = `# Resultados de Pesquisa (Agente IA)\n\n`;
       md += `**Prompt:** ${sentence}\n\n`;

@@ -120,6 +120,9 @@ def research(req: SimpleResearchRequest) -> dict[str, Any]:
         add_subjective=req.add_subjective,
     )
 
+    if ranked:
+        ranked = sorted(ranked, key=lambda x: float(x.get("rank_score", 0)), reverse=True)
+
     return {
         "sentence": req.sentence,
         "keywords": kw,
@@ -165,11 +168,13 @@ def research_stream(req: SimpleResearchRequest):
                 raise ValueError("key_word não retornou url_to_query.")
             yield _sse("progress", {"task_id": task_id, "step_index": 0, "step_name": steps[0], "message": f"OK. {len(kw.get('search_phrases') or [])} frase(s) gerada(s)."})
 
+            
             print(f"[{task_id}] STEP 2/3 {steps[1]}", flush=True)
             yield _sse("progress", {"task_id": task_id, "step_index": 1, "step_name": steps[1], "message": "Consultando arXiv..."})
             papers = arxiv_search_tool(url_to_query, max_results=req.max_results, fetch_pdf=req.fetch_pdf)
             yield _sse("progress", {"task_id": task_id, "step_index": 1, "step_name": steps[1], "message": f"OK. {len(papers or [])} resultado(s)."})
 
+           
             print(f"[{task_id}] STEP 3/3 {steps[2]}", flush=True)
             yield _sse("progress", {"task_id": task_id, "step_index": 2, "step_name": steps[2], "message": "Ranqueando artigos com IA..."})
             ranked = research_agent(
@@ -177,6 +182,9 @@ def research_stream(req: SimpleResearchRequest):
                 papers=papers,
                 add_subjective=req.add_subjective,
             )
+            if ranked:
+                ranked = sorted(ranked, key=lambda x: float(x.get("rank_score", 0)), reverse=True)
+
             yield _sse("progress", {"task_id": task_id, "step_index": 2, "step_name": steps[2], "message": f"OK. {len(ranked or [])} artigo(s) ranqueado(s)."})
 
             out = {
@@ -186,8 +194,10 @@ def research_stream(req: SimpleResearchRequest):
                 "papers_raw": papers,
                 "papers_ranked": ranked,
             }
+            
             print(f"[{task_id}] DONE elapsed_s={time.time()-t0:.2f}", flush=True)
             yield _sse("result", out)
+            
         except Exception as e:
             msg = str(e)
             print(f"[{task_id}] ERROR {msg}", flush=True)
