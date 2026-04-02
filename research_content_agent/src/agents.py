@@ -132,7 +132,7 @@ def research_agent(
     """
 
     print("==================================")
-    print("📊 Paper Ranking Agent (research_agent)")
+    print("Paper Ranking Agent (research_agent)")
     print("==================================")
 
     def _clamp_0_10(x: float) -> float:
@@ -354,7 +354,7 @@ def research_agent(
 
         ranked.append(out)
 
-    print(f"✅ Ranked {len(ranked)} papers")
+    print(f"Ranked {len(ranked)} papers")
     return ranked
 
 def writer_agent(
@@ -366,7 +366,7 @@ def writer_agent(
     retries: int = 1,
 ):
     print("==================================")
-    print("✍️ Writer Agent")
+    print("Writer Agent")
     print("==================================")
 
     system_message = """
@@ -448,7 +448,7 @@ def writer_agent(
 
     content = _call(messages)
 
-    print("✅ Output:\n", content)
+    print("Output:\n", content)
     return content, messages
 
 
@@ -458,7 +458,7 @@ def editor_agent(
     target_min_words: int = 2400,
 ):
     print("==================================")
-    print("🧠 Editor Agent")
+    print("Editor Agent")
     print("==================================")
 
     system_message = """
@@ -499,5 +499,5 @@ def editor_agent(
     )
 
     content = response.choices[0].message.content
-    print("✅ Output:\n", content)
+    print("Output:\n", content)
     return content, messages
