@@ -21,6 +21,3 @@ docker build -t fastapi-postgres-service .
 
 # roda o container
 docker run --rm -it -p 8000:8000 -p 5432:5432 --name fpsvc --env-file .env   -v "$(pwd):/app"   fastapi-postgres-service
-
-docker build -t fastapi-postgres-service .
-docker run --rm -it -p 8000:8000 -p 5432:5432 --name fpsvc --env-file .env   -v "$(pwd):/app"   fastapi-postgres-service

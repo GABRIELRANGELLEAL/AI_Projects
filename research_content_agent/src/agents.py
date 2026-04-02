@@ -142,6 +142,7 @@ def research_agent(
         return str(v).strip() if v is not None else ""
 
     def _published_to_recency_score(published: str) -> float:
+        print('generating the recency score')
         # Map age in years to a 0-10 score with a soft decay:
         # 0y->10, 1y->9, 2y->8, ... 8y->2, 10y+->0 (clamped)
         try:
@@ -157,6 +158,7 @@ def research_agent(
         return {t for t in re.findall(r"[a-z0-9]+", text.lower()) if len(t) >= 3}
 
     def _similarity_score(title: str, summary: str) -> float:
+        print('generating the similarity score')
         # Pure token overlap similarity (no heuristics/keywords fallback).
         q = _tokenize(query or "")
         if not q:
@@ -166,6 +168,7 @@ def research_agent(
         return _clamp_0_10(10.0 * (overlap / max(1, len(q))))
 
     def _quality_score(paper: dict) -> float:
+        print('generating the quality score')
         title = _safe_str(paper.get("title"))
         summary = _safe_str(paper.get("summary"))
         url = _safe_str(paper.get("url"))
@@ -204,6 +207,7 @@ def research_agent(
             "pdf_pages_used": int,
           }
         """
+        print('generating the subjective llm score')
         if not isinstance(paper, dict):
             return {
                 "score_subjective": 0.0,
@@ -294,7 +298,7 @@ def research_agent(
                 "rationale": f"Invalid LLM JSON output: {content[:400]}",
                 "pdf_pages_used": pages_used,
             }
-
+    print('creating the final list')
     ranked: list[dict] = []
     for idx, paper in enumerate(papers or []):
         if not isinstance(paper, dict):
@@ -331,26 +335,22 @@ def research_agent(
         score_similarity = _similarity_score(title, summary)
         score_recency = _published_to_recency_score(published)
         score_quality = _quality_score(paper)
-        rank_score = _clamp_0_10((score_similarity + score_recency + score_quality) / 3.0)
+        score_subj = _llm_subjective_relevance_score(
+            out,
+            model=subjective_model,
+            max_pages=subjective_max_pages,
+            max_chars=subjective_max_chars,
+        )
+        rank_score = _clamp_0_10(((score_similarity*2) + score_recency + score_quality+(score_subj*2)) / 4.0)
 
         out = dict(paper)
         out["original_index"] = idx
         out["score_similarity"] = round(score_similarity, 2)
         out["score_recency"] = round(score_recency, 2)
         out["score_quality"] = round(score_quality, 2)
-        out["score_subjective"] = 0.0
-        out["rationale"] = ""
+        out["score_subjective"] = float(score_subj.get("score_subjective", 0.0))
+        out["rationale"] = str(score_subj.get("rationale", "")).strip()
         out["rank_score"] = round(rank_score, 2)
-
-        if add_subjective:
-            subj = _llm_subjective_relevance_score(
-                out,
-                model=subjective_model,
-                max_pages=subjective_max_pages,
-                max_chars=subjective_max_chars,
-            )
-            out["score_subjective"] = float(subj.get("score_subjective", 0.0))
-            out["rationale"] = str(subj.get("rationale", "")).strip()
 
         ranked.append(out)
 
