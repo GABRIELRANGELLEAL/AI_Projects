@@ -56,6 +56,7 @@
         color: black !important;
         background: white !important;
       }
+      .print-hide { display: none !important; }
     }
   </style>
 
@@ -76,8 +77,14 @@
               input: 'var(--app-input)'
             },
             brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
               500: '#6366f1',
               600: '#4f46e5',
+              700: '#4338ca',
             }
           }
         }
@@ -108,117 +115,108 @@
     <div class="p-5 border-b border-app-border flex justify-between items-start">
       <div>
         <div class="flex items-center gap-2">
-          <h2 class="text-gray-900 dark:text-white font-semibold text-sm">Orquestrador de IA</h2>
+          <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white shadow-sm">
+            <i data-lucide="bot" class="w-5 h-5"></i>
+          </div>
+          <h1 class="text-gray-900 dark:text-white font-bold text-base">Content Generator</h1>
         </div>
-        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Escolha as fontes, defina os parâmetros e insira o prompt.</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Agente inteligente para busca e ranqueamento de artigos científicos.</p>
       </div>
-      <span id="statusBadgeSidebar" class="text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 transition-colors">
-        Idle
-      </span>
     </div>
 
     <!-- Body Sidebar (Scrolável) -->
     <div class="p-5 flex-1 overflow-y-auto flex flex-col gap-6">
       
-      <!-- Prompt Input -->
-      <div>
-        <label class="block text-gray-800 dark:text-gray-200 font-medium mb-2 text-sm">Prompt</label>
-        <div class="relative group">
-          <textarea 
-            id="promptInput" 
-            class="w-full bg-app-input border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-colors min-h-[140px] resize-none placeholder-gray-400 dark:placeholder-gray-500 shadow-inner"
-            placeholder="Exemplo: Escreva um rascunho sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto."
-          ></textarea>
+        <!-- Prompt Input -->
+        <div>
+            <label class="block text-gray-800 dark:text-gray-200 font-semibold mb-2 text-sm">O que você deseja pesquisar?</label>
+            <div class="relative group">
+                <textarea 
+                id="promptInput" 
+                class="w-full bg-app-input border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all min-h-[140px] resize-none placeholder-gray-400 dark:placeholder-gray-500 shadow-sm"
+                placeholder="Ex: What evaluation benchmarks could help measure the distance between current large language models and artificial general intelligence (AGI)?"
+                ></textarea>
+            </div>
         </div>
-      </div>
-
+        
       <!-- Sources -->
       <div>
-        <label class="block text-gray-800 dark:text-gray-200 font-medium mb-3 text-sm">Fontes de Pesquisa</label>
+        <label class="block text-gray-800 dark:text-gray-200 font-semibold mb-3 text-sm">Fontes de Pesquisa</label>
         <div class="flex flex-wrap gap-2">
           <label class="cursor-pointer relative">
-            <input type="checkbox" value="scielo" class="source-cb sr-only" checked>
-            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
-              <i data-lucide="book-open" class="w-3.5 h-3.5 mr-1.5"></i> SciELO
-            </span>
-          </label>
-          <label class="cursor-pointer relative">
-            <input type="checkbox" value="wikipedia" class="source-cb sr-only" checked>
-            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
-              <i data-lucide="book" class="w-3.5 h-3.5 mr-1.5"></i> Wikipedia
-            </span>
-          </label>
-          <label class="cursor-pointer relative">
-            <input type="checkbox" value="arxiv" class="source-cb sr-only" checked>
-            <span class="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
+            <input type="checkbox" value="arxiv" class="source-cb sr-only" checked disabled>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors bg-brand-50 dark:bg-brand-500/15 border border-brand-200 dark:border-brand-500/30 text-brand-600 dark:text-brand-400">
               <i data-lucide="file-text" class="w-3.5 h-3.5 mr-1.5"></i> arXiv
             </span>
           </label>
         </div>
       </div>
 
-      <!-- Pipeline Steps (Estilo Imagem) -->
-      <div class="bg-gray-50 dark:bg-[#161923] border border-gray-200 dark:border-[#1f2937] rounded-lg p-4 font-mono shadow-sm dark:shadow-inner transition-colors">
+      <!-- Pipeline Steps -->
+      <div class="bg-gray-50 dark:bg-[#161923] border border-gray-200 dark:border-[#1f2937] rounded-xl p-4 font-mono shadow-sm transition-colors">
         <div class="flex justify-between items-center mb-4 font-sans font-semibold text-sm text-gray-800 dark:text-gray-300">
-          <span>Pipeline steps</span>
-          <span class="text-gray-500 font-normal text-xs" id="taskIdDisplay">task: —</span>
+          <span class="flex items-center gap-2"><i data-lucide="activity" class="w-4 h-4 text-brand-500"></i> Status da Tarefa</span>
+          <span id="statusBadgeSidebar" class="text-[10px] uppercase tracking-wider font-bold bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+            Idle
+          </span>
         </div>
         
         <div class="flex flex-col gap-3" id="pipelineStepsList">
           <!-- Populated by JS -->
         </div>
         
-        <div class="mt-4 text-gray-500 dark:text-gray-400 text-xs font-sans" id="pipelineFooter">Waiting...</div>
+        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center text-xs font-sans">
+            <span class="text-gray-500 font-medium" id="taskIdDisplay">task: —</span>
+            <span class="text-gray-500 dark:text-gray-400 font-medium" id="pipelineFooter">Aguardando...</span>
+        </div>
       </div>
 
     </div>
 
-    <!-- Footer Sidebar (Ações) -->
-    <div class="p-4 border-t border-app-border flex items-center gap-2 bg-app-panel transition-colors">
-      <button type="button" onclick="insertSamplePrompt()" class="flex items-center gap-1.5 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 transition-colors" title="Inserir prompt de exemplo">
-        <i data-lucide="wand-2" class="w-4 h-4"></i> Exemplo
-      </button>
-      
-      <button id="runBtn" onclick="submitPrompt()" class="flex-1 flex justify-center items-center gap-1.5 px-4 py-2 rounded-md bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium transition-colors shadow-sm focus:ring-2 focus:ring-brand-500/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-        <i data-lucide="play" class="w-4 h-4 fill-current"></i> Executar
-      </button>
+    <!-- Footer Sidebar -->
+    <div class="p-4 border-t border-app-border flex items-center gap-2 bg-app-panel transition-colors z-20">
+        <button type="button" onclick="insertSamplePrompt()" class="flex items-center justify-center w-10 h-10 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors" title="Inserir prompt de exemplo">
+            <i data-lucide="wand-2" class="w-4 h-4"></i>
+        </button>
+        
+        <button id="runBtn" onclick="submitPrompt()" class="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold transition-all shadow-md hover:shadow-lg focus:ring-2 focus:ring-brand-500/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+            <i data-lucide="search" class="w-4 h-4"></i> Pesquisar e Ranquear
+        </button>
 
-      <button id="stopBtn" onclick="stopPolling()" class="flex items-center justify-center px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-transparent hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/30 dark:hover:text-red-400 dark:hover:border-red-900/50 text-gray-500 dark:text-gray-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Interromper polling" disabled>
-        <i data-lucide="square" class="w-4 h-4 fill-current"></i>
-      </button>
+        <button id="stopBtn" onclick="stopPolling()" class="flex items-center justify-center w-10 h-10 border border-gray-300 dark:border-gray-700 rounded-lg bg-transparent hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/30 dark:hover:text-red-400 dark:hover:border-red-900/50 text-gray-500 dark:text-gray-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Interromper processamento" disabled>
+            <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+        </button>
     </div>
+
   </aside>
 
   <!-- PAINEL DIREITO: Prévia (Main) -->
-  <main class="flex-1 flex flex-col min-w-0 bg-app-bg transition-colors duration-300">
+  <main class="flex-1 flex flex-col min-w-0 bg-app-bg transition-colors duration-300 relative">
     
     <!-- Header Main -->
-    <div class="h-16 px-6 border-b border-app-border flex justify-between items-center flex-shrink-0 bg-app-panel lg:bg-transparent">
+    <div class="h-16 px-6 border-b border-app-border flex justify-between items-center flex-shrink-0 bg-app-panel lg:bg-transparent backdrop-blur-sm z-10 sticky top-0">
       <div>
-        <h2 class="text-gray-900 dark:text-white font-semibold text-sm flex items-center gap-2">
-          Prévia
+        <h2 class="text-gray-900 dark:text-white font-bold text-lg flex items-center gap-2">
+          Resultados da Pesquisa
         </h2>
-        <p id="articleBadge" class="text-xs text-gray-500 mt-0.5">Nenhum conteúdo ainda</p>
+        <p id="articleBadge" class="text-xs font-medium text-gray-500 mt-0.5">Nenhum dado carregado</p>
       </div>
       
       <div class="flex items-center gap-2">
-        <button id="btnCopyMd" onclick="copyMD()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
-          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copiar MD
+        <button id="btnCopyMd" onclick="copyMD()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#161923] hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 transition-all shadow-sm disabled:opacity-50" disabled>
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> MD
         </button>
-        <button id="btnMd" onclick="downloadMarkdown()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+        <button id="btnMd" onclick="downloadMarkdown()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#161923] hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 transition-all shadow-sm disabled:opacity-50" disabled>
           <i data-lucide="download" class="w-3.5 h-3.5"></i> .md
         </button>
-        <button id="btnHtml" onclick="downloadHTML()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
-          <i data-lucide="download" class="w-3.5 h-3.5"></i> .html
-        </button>
-        <button id="btnPdf" onclick="downloadPDF()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors disabled:opacity-50" disabled>
+        <button id="btnPdf" onclick="downloadPDF()" class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#161923] hover:bg-gray-50 dark:hover:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 transition-all shadow-sm disabled:opacity-50" disabled>
           <i data-lucide="file-down" class="w-3.5 h-3.5"></i> .pdf
         </button>
         
         <div class="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
         
         <!-- Botão Toggle Tema -->
-        <button id="themeToggleBtn" onclick="toggleTheme()" class="flex items-center justify-center p-1.5 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-colors" title="Alternar Modo Claro/Escuro">
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="flex items-center justify-center p-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#161923] hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 transition-all shadow-sm" title="Alternar Tema">
           <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
           <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
         </button>
@@ -226,12 +224,17 @@
     </div>
 
     <!-- Body Main -->
-    <div class="flex-1 p-4 md:p-6 overflow-hidden flex flex-col">
-      <div class="w-full h-full bg-app-panel border border-app-border rounded-xl shadow-lg overflow-y-auto relative transition-colors">
-        <div id="articlePane" class="prose prose-slate dark:prose-invert prose-sm md:prose-base max-w-4xl mx-auto p-8 md:p-12 transition-colors">
-          <p class="text-gray-500 font-medium">Execute uma tarefa para ver o rascunho/resultado final aqui.</p>
+    <div class="flex-1 p-4 md:p-8 overflow-y-auto scroll-smooth">
+        <div id="articlePane" class="max-w-7xl mx-auto w-full transition-colors pb-12">
+            <!-- Estado Vazio -->
+            <div class="flex flex-col items-center justify-center h-[60vh] text-center">
+                <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <i data-lucide="inbox" class="w-10 h-10 text-gray-400 dark:text-gray-500"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Pronto para Pesquisar</h3>
+                <p class="text-gray-500 dark:text-gray-400 max-w-md">Insira o assunto desejado no painel ao lado e o agente fará a busca, leitura e ranqueamento inteligente dos melhores artigos científicos.</p>
+            </div>
         </div>
-      </div>
     </div>
 
   </main>
@@ -260,20 +263,18 @@
 
     // Estado global
     let currentTaskId = null;
-    let pollInterval = null;
     let finalReportMarkdown = "";
-    let lastRenderedStepsKey = "";
+    let currentAbortController = null;
 
-    // Componente de UI - Pipeline Steps (Estilo Imagem)
+    // Componente de UI - Pipeline Steps
     const defaultPipelineSteps = [
-      "extracting informations",
-      "research agent",
-      "write agent",
-      "editor agent"
+      "Extração de Palavras-chave",
+      "Busca no Diretório (arXiv)",
+      "Avaliação e Ranqueamento (IA)"
     ];
 
     function renderPipeline(stepsData, taskId, statusStr) {
-      document.getElementById('taskIdDisplay').textContent = taskId ? `task: ${taskId.substring(0,8)}...` : 'task: —';
+      document.getElementById('taskIdDisplay').textContent = taskId ? `ID: ${taskId.substring(0,8)}...` : 'ID: —';
       
       const stepsToRender = (stepsData && stepsData.length > 0) 
         ? stepsData 
@@ -282,63 +283,49 @@
       let html = '';
       
       stepsToRender.forEach(step => {
-        // Estilos baseados no status da etapa
-        let badgeClass = "border-gray-300 text-gray-500 dark:border-gray-600 dark:text-gray-400 bg-transparent"; // default: pending
-        let badgeText = step.status || "pending";
+        let badgeClass = "text-gray-400 dark:text-gray-600";
+        let iconHtml = `<i data-lucide="circle" class="w-3.5 h-3.5"></i>`;
         
         if (step.status === 'running') {
-          badgeClass = "border-brand-300 text-brand-600 bg-brand-50 dark:border-brand-500 dark:text-brand-400 dark:bg-brand-500/10 animate-pulse";
+          badgeClass = "text-brand-600 dark:text-brand-400";
+          iconHtml = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>`;
         } else if (step.status === 'done') {
-          badgeClass = "border-emerald-300 text-emerald-600 bg-emerald-50 dark:border-emerald-500 dark:text-emerald-400 dark:bg-emerald-500/10";
+          badgeClass = "text-emerald-600 dark:text-emerald-400";
+          iconHtml = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>`;
         } else if (step.status === 'error') {
-          badgeClass = "border-red-300 text-red-600 bg-red-50 dark:border-red-500 dark:text-red-400 dark:bg-red-500/10";
+          badgeClass = "text-red-600 dark:text-red-400";
+          iconHtml = `<i data-lucide="x-circle" class="w-3.5 h-3.5"></i>`;
         }
 
         html += `
-          <div class="flex justify-between items-center">
-            <span class="text-gray-800 dark:text-gray-300 text-[13.5px] tracking-tight">${step.name || 'step'}</span>
-            <span class="px-2 py-0.5 rounded text-[11px] font-medium border ${badgeClass}">${badgeText}</span>
+          <div class="flex items-center gap-3">
+            <div class="${badgeClass}">${iconHtml}</div>
+            <span class="text-[13px] font-medium text-gray-700 dark:text-gray-300 ${step.status === 'pending' ? 'opacity-50' : ''}">${step.name || 'step'}</span>
           </div>
         `;
       });
       
       document.getElementById('pipelineStepsList').innerHTML = html;
       
-      // Footer text logic
       const footer = document.getElementById('pipelineFooter');
-      if (statusStr === 'running') footer.textContent = 'Processando...';
-      else if (statusStr === 'done') footer.textContent = 'Finalizado com sucesso.';
-      else if (statusStr === 'error') footer.textContent = 'Erro na execução.';
-      else footer.textContent = 'Waiting...';
+      if (statusStr === 'running') footer.textContent = 'Em andamento...';
+      else if (statusStr === 'done') footer.textContent = 'Sucesso.';
+      else if (statusStr === 'error') footer.textContent = 'Falha na execução.';
+      else footer.textContent = 'Aguardando...';
+      
+      lucide.createIcons();
     }
 
-    // Lógica Visual - Botões de Fontes
-    const sourceCheckboxes = document.querySelectorAll('.source-cb');
-    function updateSourcesUI() {
-      sourceCheckboxes.forEach(cb => {
-        const span = cb.nextElementSibling;
-        if (cb.checked) {
-          span.classList.remove('bg-transparent', 'border-gray-300', 'text-gray-500', 'dark:border-gray-700', 'dark:text-gray-400');
-          span.classList.add('bg-brand-50', 'border-brand-200', 'text-brand-600', 'dark:bg-brand-500/10', 'dark:border-brand-500/30', 'dark:text-brand-400');
-        } else {
-          span.classList.add('bg-transparent', 'border-gray-300', 'text-gray-500', 'dark:border-gray-700', 'dark:text-gray-400');
-          span.classList.remove('bg-brand-50', 'border-brand-200', 'text-brand-600', 'dark:bg-brand-500/10', 'dark:border-brand-500/30', 'dark:text-brand-400');
-        }
-      });
-    }
-    sourceCheckboxes.forEach(cb => cb.addEventListener('change', updateSourcesUI));
-
-    // Inicialização do documento
     document.addEventListener('DOMContentLoaded', () => {
-      updateSourcesUI();
-      renderPipeline(null, null, 'idle'); // Renderiza o estado inicial do pipeline
+      renderPipeline(null, null, 'idle');
     });
 
     // Prompts de Exemplo
     const samplePrompts = [
-      "Escreva um rascunho sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto.",
-      "Crie um relatório acadêmico analisando o impacto da inteligência artificial generativa na automação de processos jurídicos corporativos.",
-      "Resuma os avanços de 2024 na tecnologia de baterias de estado sólido, focando especificamente nos desafios térmicos e de densidade."
+      "What are the main techniques used in quantum error correction, and what challenges remain unsolved?",
+      "How are diffusion models being used to generate realistic videos, and what are the current limitations of this approach?",
+      "What were the major breakthroughs in multimodal large language models in 2024, particularly related to mathematical reasoning?",
+      "What evaluation benchmarks could help measure the distance between current large language models and artificial general intelligence (AGI)"
     ];
     let samplePromptIndex = 0;
     
@@ -349,10 +336,6 @@
       input.focus();
     }
 
-    function getSelectedSources() {
-      return Array.from(document.querySelectorAll('.source-cb:checked')).map(cb => cb.value);
-    }
-
     // Controles da UI
     function disableUI(disabled) {
       document.getElementById('runBtn').disabled = disabled;
@@ -360,158 +343,336 @@
       document.getElementById('stopBtn').disabled = !disabled;
       
       const runBtn = document.getElementById('runBtn');
+      const badge = document.getElementById('statusBadgeSidebar');
+      
       if (disabled) {
-        runBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Executando...`;
-        document.getElementById('statusBadgeSidebar').textContent = 'Executando';
-        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400 px-2.5 py-1 rounded border border-brand-200 dark:border-brand-500/30';
+        runBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Processando...`;
+        badge.textContent = 'RUNNING';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-400 px-2 py-0.5 rounded';
       } else {
-        runBtn.innerHTML = `<i data-lucide="play" class="w-4 h-4 fill-current"></i> Executar`;
-        document.getElementById('statusBadgeSidebar').textContent = 'Ocioso';
-        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700';
+        runBtn.innerHTML = `<i data-lucide="search" class="w-4 h-4"></i> Pesquisar e Ranquear`;
+        badge.textContent = 'IDLE';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded';
       }
       lucide.createIcons();
     }
 
     function stopPolling() {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-        disableUI(false);
-        document.getElementById('statusBadgeSidebar').textContent = 'Cancelado';
-        document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-500/30';
-        renderPipeline(null, currentTaskId, 'idle'); // Volta pro estado waiting
-
-        // Avisa o backend para parar a thread
-        if (currentTaskId) {
-          fetch(`${API_BASE_URL}/tasks/${currentTaskId}/cancel`, { method: 'POST' })
-            .catch(err => console.error("Erro ao cancelar no backend:", err));
-        }
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
       }
+      disableUI(false);
+      const badge = document.getElementById('statusBadgeSidebar');
+      badge.textContent = 'STOPPED';
+      badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2 py-0.5 rounded';
+      renderPipeline(null, currentTaskId, 'idle');
+    }
+
+    // ----------------------------------------------------
+    // RENDERIZAÇÃO DA TELA COM OS CARDS QUADRADOS (GRID)
+    // ----------------------------------------------------
+    function renderResearchResults(sentence, keywordsObj, rankedPapers) {
+      const keywords = (keywordsObj && keywordsObj.search_phrases) ? keywordsObj.search_phrases : [];
+      const urlToQuery = (keywordsObj && keywordsObj.url_to_query) ? keywordsObj.url_to_query : '';
+
+      let html = `<div class="flex flex-col gap-8">`;
+
+      // 1. Cabeçalho de Resumo da Busca
+      html += `
+        <div class="bg-white dark:bg-[#161923] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm relative overflow-hidden">
+            <!-- Efeito visual de fundo -->
+            <div class="absolute -right-10 -top-10 w-40 h-40 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <div class="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i data-lucide="target" class="w-4 h-4"></i> Prompt Original
+                    </h3>
+                    <p class="text-lg font-medium text-gray-900 dark:text-white leading-relaxed mb-4">"${escapeHtml(sentence)}"</p>
+                    
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <span class="text-sm font-semibold text-gray-600 dark:text-gray-400 mr-2">Keywords:</span>
+                        ${keywords.length > 0 
+                          ? keywords.map(kw => `<span class="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-xs font-semibold">${escapeHtml(kw)}</span>`).join('') 
+                          : `<span class="text-sm text-gray-500 italic">Nenhuma identificada.</span>`}
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center p-4 bg-brand-50 dark:bg-brand-500/10 rounded-xl border border-brand-100 dark:border-brand-500/20 min-w-[120px]">
+                    <span class="text-4xl font-black text-brand-600 dark:text-brand-400 mb-1">${rankedPapers ? rankedPapers.length : 0}</span>
+                    <span class="text-xs font-bold text-brand-700/70 dark:text-brand-300/70 uppercase">Artigos</span>
+                </div>
+            </div>
+        </div>
+      `;
+
+      // 2. Título da Seção de Artigos
+      html += `
+        <div class="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 pb-3">
+            <i data-lucide="award" class="w-6 h-6 text-brand-500"></i>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Artigos Ranqueados</h2>
+        </div>
+      `;
+
+      // 3. GRID DOS ARTIGOS (Cards)
+      if (!rankedPapers || rankedPapers.length === 0) {
+        html += `
+          <div class="col-span-full p-12 text-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl">
+              <i data-lucide="ghost" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+              <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-1">Nenhum artigo encontrado</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Tente ajustar as palavras do prompt ou aumentar o limite máximo.</p>
+          </div>`;
+      } else {
+        html += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">`;
+        
+        rankedPapers.forEach((p, idx) => {
+          const title = escapeHtml(p.title || p.error || `Paper ${idx+1}`);
+          const url = p.url || '#';
+          const published = p.published ? new Date(p.published).getFullYear() : 'N/A';
+          const authors = Array.isArray(p.authors) ? escapeHtml(p.authors.slice(0, 3).join(', ')) + (p.authors.length > 3 ? ' et al.' : '') : 'Autores desconhecidos';
+          const summary = escapeHtml(p.summary || 'Resumo não disponível.');
+          const rationale = escapeHtml(p.rationale || '');
+          
+          // Formatação dos Scores
+          const rankScoreRaw = Number(p.rank_score || 0);
+          const rankScore = rankScoreRaw.toFixed(1);
+          
+          // Cores baseadas no score geral para o badge principal
+          let scoreColorClass = "bg-brand-500";
+          if (rankScoreRaw >= 8.5) scoreColorClass = "bg-emerald-500";
+          else if (rankScoreRaw >= 7.0) scoreColorClass = "bg-blue-500";
+          else if (rankScoreRaw < 5.0) scoreColorClass = "bg-amber-500";
+
+          const sim = (p.score_similarity != null) ? Number(p.score_similarity).toFixed(1) : '-';
+          const rec = (p.score_recency != null) ? Number(p.score_recency).toFixed(1) : '-';
+          const qual = (p.score_quality != null) ? Number(p.score_quality).toFixed(1) : '-';
+          const subj = (p.score_subjective != null) ? Number(p.score_subjective).toFixed(1) : '-';
+
+          html += `
+            <div class="relative flex flex-col p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#161923] shadow-sm hover:shadow-xl hover:border-brand-300 dark:hover:border-brand-500/50 transition-all duration-300 group">
+              
+              <!-- Badge de Posição / Top -->
+              ${idx < 3 ? `
+              <div class="absolute -left-3 -top-3 w-8 h-8 rounded-full bg-amber-400 text-amber-900 flex items-center justify-center font-bold text-sm shadow-md border-2 border-white dark:border-[#161923] z-20" title="Top ${idx+1}">
+                #${idx+1}
+              </div>` : ''}
+
+              <!-- Score Badge Flutuante -->
+              <div class="absolute -top-5 -right-5 w-16 h-16 rounded-full ${scoreColorClass} text-white flex flex-col items-center justify-center shadow-lg border-4 border-white dark:border-[#161923] z-10 transform group-hover:scale-110 transition-transform duration-300">
+                  <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 leading-none mt-1">Score</span>
+                  <span class="text-xl font-black leading-tight">${rankScore}</span>
+              </div>
+
+              <!-- Conteúdo Header -->
+              <div class="mb-4 pr-10">
+                <a href="${url}" target="_blank" class="text-lg font-bold text-gray-900 dark:text-white leading-snug line-clamp-2 hover:text-brand-600 dark:hover:text-brand-400 transition-colors" title="${title}">
+                  ${title}
+                </a>
+                <div class="mt-2 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${published}</span>
+                  <span class="flex items-center gap-1 line-clamp-1" title="${authors}"><i data-lucide="users" class="w-3.5 h-3.5"></i> ${authors}</span>
+                </div>
+              </div>
+
+              <!-- Grid de Métricas (Sub-scores) -->
+              <div class="grid grid-cols-4 gap-2 mb-5">
+                <div class="flex flex-col items-center p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Sim</span>
+                  <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">${sim}</span>
+                </div>
+                <div class="flex flex-col items-center p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Rec</span>
+                  <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">${rec}</span>
+                </div>
+                <div class="flex flex-col items-center p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Qual</span>
+                  <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">${qual}</span>
+                </div>
+                <div class="flex flex-col items-center p-1.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
+                  <span class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">Subj</span>
+                  <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">${subj}</span>
+                </div>
+              </div>
+
+              <!-- Summary & Rationale -->
+              <div class="flex-1">
+                ${rationale ? `<div class="mb-3 px-3 py-2 border-l-2 border-brand-400 bg-brand-50 dark:bg-brand-500/10 text-xs text-gray-700 dark:text-gray-300 italic font-medium line-clamp-2">" ${rationale} "</div>` : ''}
+                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-4 leading-relaxed">${summary}</p>
+              </div>
+
+              <!-- Footer do Card -->
+              <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <a href="${url}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 transition-colors uppercase tracking-wide">
+                  Ler Paper <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+              </div>
+            </div>
+          `;
+        });
+        
+        html += `</div>`; // Fechando o Grid
+      }
+
+      html += `</div>`; // Fechando o container principal
+      document.getElementById('articlePane').innerHTML = html;
+      lucide.createIcons();
     }
 
     // Submissão
     function submitPrompt() {
       const prompt = document.getElementById('promptInput').value.trim();
-      const sources = getSelectedSources();
+      const maxResults = 10; // Removido do input, fixado em 10
       
       if (!prompt) {
-        alert("Por favor, digite um prompt para iniciar.");
-        return;
-      }
-      if (sources.length === 0) {
-        alert("Selecione pelo menos uma fonte.");
+        alert("Por favor, digite um assunto no campo de pesquisa.");
         return;
       }
 
       const payload = {
-        prompt: prompt,
-        sources: sources
+        sentence: prompt,
+        max_results: maxResults,
+        fetch_pdf: false,
+        add_subjective: true
       };
 
       disableUI(true);
 
-      fetch(`${API_BASE_URL}/generate_report`, {
+      currentTaskId = `run_${Date.now().toString(36)}`;
+      
+      // Animação dos passos do pipeline (simulada até que o backend responda)
+      const steps = defaultPipelineSteps.map((n, i) => ({ 
+        name: n, 
+        status: i === 0 ? 'running' : 'pending' 
+      }));
+      renderPipeline(steps, currentTaskId, 'running');
+
+      document.getElementById('btnCopyMd').disabled = true;
+      document.getElementById('btnMd').disabled = true;
+      document.getElementById('btnPdf').disabled = true;
+
+      document.getElementById('articleBadge').textContent = 'Analisando dados...';
+      document.getElementById('articlePane').innerHTML = `
+        <div class="flex flex-col items-center justify-center h-[60vh] text-center">
+            <div class="relative w-24 h-24 mb-8">
+                <div class="absolute inset-0 border-4 border-gray-200 dark:border-gray-800 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-brand-500 rounded-full border-t-transparent animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                   <i data-lucide="brain" class="w-8 h-8 text-brand-500 animate-pulse"></i>
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Processamento Inteligente</h3>
+            <p class="text-gray-500 dark:text-gray-400 max-w-sm text-sm leading-relaxed">O agente está extraindo entidades, vasculhando a base do arXiv e passando os resultados pela IA para ranqueamento matemático e subjetivo. Isso pode levar alguns segundos.</p>
+        </div>
+      `;
+      lucide.createIcons();
+
+      if (currentAbortController) currentAbortController.abort();
+      currentAbortController = new AbortController();
+
+      fetch(`${API_BASE_URL}/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: currentAbortController.signal
       })
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        currentTaskId = data.task_id;
-        
-        lastRenderedStepsKey = "";
-        renderPipeline(null, currentTaskId, 'running'); // Mostra todos como pending logo de cara
-        
-        document.getElementById('articleBadge').textContent = 'Iniciando agentes...';
-        document.getElementById('articlePane').innerHTML = `
-          <div class="h-full flex flex-col items-center justify-center text-center text-gray-500 mt-20">
-            <i data-lucide="loader-2" class="w-8 h-8 mb-4 animate-spin text-brand-500"></i>
-            <p class="animate-pulse">Configurando agentes e ambiente de pesquisa...</p>
-          </div>
-        `;
-        lucide.createIcons();
+        currentAbortController = null;
+        disableUI(false);
 
-        if (pollInterval) clearInterval(pollInterval);
-        pollInterval = setInterval(fetchProgress, 2000);
+        renderPipeline(
+          defaultPipelineSteps.map(n => ({ name: n, status: 'done' })),
+          currentTaskId,
+          'done'
+        );
+
+        const badge = document.getElementById('statusBadgeSidebar');
+        badge.textContent = 'CONCLUÍDO';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded';
+
+        document.getElementById('articleBadge').textContent = `${data.papers_ranked?.length || 0} artigos processados`;
+
+        // Renderiza as UI novas (Grid)
+        const ranked = data.papers_ranked || [];
+        renderResearchResults(data.sentence, data.keywords, ranked);
+
+        // Prepara exportação
+        finalReportMarkdown = buildResultsMarkdown(data);
+        document.getElementById('btnCopyMd').disabled = false;
+        document.getElementById('btnMd').disabled = false;
+        document.getElementById('btnPdf').disabled = false;
       })
       .catch((err) => {
         console.error(err);
+        currentAbortController = null;
         disableUI(false);
-        alert("Erro ao conectar com a API.");
+        
+        const badge = document.getElementById('statusBadgeSidebar');
+        badge.textContent = 'ERRO';
+        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded';
+        
+        renderPipeline(
+          defaultPipelineSteps.map(n => ({ name: n, status: 'error' })),
+          currentTaskId,
+          'error'
+        );
+        
+        if (err && err.name === 'AbortError') {
+          document.getElementById('articlePane').innerHTML = `<div class="p-8 text-center text-amber-500 font-bold">Operação cancelada pelo usuário.</div>`;
+        } else {
+          document.getElementById('articlePane').innerHTML = `
+            <div class="p-8 text-center border-2 border-dashed border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-2xl max-w-2xl mx-auto mt-10">
+                <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
+                <h3 class="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Erro ao executar a pesquisa</h3>
+                <p class="text-sm text-red-600 dark:text-red-300 opacity-80">${err.message || 'Verifique se o backend (FastAPI) está rodando no porto correto.'}</p>
+            </div>
+          `;
+          lucide.createIcons();
+        }
       });
     }
 
-    // Polling e Atualização
-    function fetchProgress() {
-      if (!currentTaskId) return;
+    // Markdown Builder
+    function buildResultsMarkdown(data) {
+      const sentence = (data && data.sentence) ? data.sentence : '';
+      const kw = (data && data.keywords) ? data.keywords : {};
+      const phrases = Array.isArray(kw.search_phrases) ? kw.search_phrases : [];
+      const papers = Array.isArray(data.papers_ranked) ? data.papers_ranked : [];
 
-      fetch(`${API_BASE_URL}/tasks/${currentTaskId}`)
-        .then(res => res.json())
-        .then(data => {
-          const result = data.result || {};
-          const steps = result.steps || [];
-          
-          // 1. Atualizar Pipeline
-          const currentKey = steps.map(s => `${s.name}-${s.status}`).join('|');
-          if (currentKey !== lastRenderedStepsKey) {
-            lastRenderedStepsKey = currentKey;
-            renderPipeline(steps, currentTaskId, data.status);
-          }
+      let md = `# Resultados de Pesquisa (Agente IA)\n\n`;
+      md += `**Prompt:** ${sentence}\n\n`;
+      if (phrases.length) {
+        md += `**Palavras-chave utilizadas:** ${phrases.join(', ')}\n\n`;
+      }
 
-          // Verificar conclusão
-          if (data.status === 'done' || data.status === 'error' || data.status === 'cancelled') {
-            clearInterval(pollInterval);
-            pollInterval = null;
-            disableUI(false);
-            if (data.status === 'done') {
-              document.getElementById('statusBadgeSidebar').textContent = 'Concluído';
-              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2.5 py-1 rounded border border-emerald-200 dark:border-emerald-500/30';
-            } else if (data.status === 'cancelled') {
-              document.getElementById('statusBadgeSidebar').textContent = 'Cancelado';
-              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-500 px-2.5 py-1 rounded border border-amber-200 dark:border-amber-500/30';
-            } else {
-              document.getElementById('statusBadgeSidebar').textContent = 'Erro';
-              document.getElementById('statusBadgeSidebar').className = 'text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2.5 py-1 rounded border border-red-200 dark:border-red-500/30';
-            }
-          }
+      md += `## Artigos Ranqueados\n\n`;
+      papers.forEach((p, idx) => {
+        md += `### ${idx + 1}. ${p.title || p.error || 'Paper'}\n\n`;
+        md += `**Score Geral:** ${Number(p.rank_score).toFixed(2)} (Sim: ${Number(p.score_similarity).toFixed(2)} | Rec: ${Number(p.score_recency).toFixed(2)} | Qual: ${Number(p.score_quality).toFixed(2)} | Subj: ${Number(p.score_subjective).toFixed(2)})\n\n`;
+        
+        if (p.authors) md += `- **Autores:** ${p.authors.join(', ')}\n`;
+        if (p.published) md += `- **Data:** ${new Date(p.published).toLocaleDateString()}\n`;
+        if (p.url) md += `- **URL:** ${p.url}\n\n`;
+        
+        if (p.rationale) md += `> **Análise IA:** *${p.rationale}*\n\n`;
+        if (p.summary) md += `**Resumo:** ${p.summary}\n\n`;
+        md += `---\n\n`;
+      });
+      return md.trim();
+    }
 
-          // 2. Atualizar a Prévia (Artigo)
-          const finalMd = result.article_markdown;
-          const draftMd = result.draft_markdown;
-          const researchMd = result.research_text;
-
-          let contentMd = finalMd || draftMd || researchMd || '';
-          
-          const badge = document.getElementById('articleBadge');
-          const pane = document.getElementById('articlePane');
-          
-          if (finalMd) {
-            badge.textContent = "Artigo Finalizado";
-            badge.className = "text-xs font-medium text-emerald-600 dark:text-emerald-400";
-            document.getElementById('btnCopyMd').disabled = false;
-            document.getElementById('btnMd').disabled = false;
-            document.getElementById('btnHtml').disabled = false;
-            document.getElementById('btnPdf').disabled = false;
-          } else if (draftMd) {
-            badge.textContent = "Gerando Rascunho...";
-            badge.className = "text-xs font-medium text-amber-600 dark:text-amber-400 animate-pulse";
-          } else if (researchMd) {
-            badge.textContent = "Coletando Dados...";
-            badge.className = "text-xs font-medium text-brand-600 dark:text-brand-400 animate-pulse";
-          } else if (data.status === 'error') {
-            badge.textContent = "Falha na Tarefa";
-            badge.className = "text-xs font-medium text-red-600 dark:text-red-400";
-          } else if (data.status === 'cancelled') {
-            badge.textContent = "Tarefa Cancelada";
-            badge.className = "text-xs font-medium text-amber-600 dark:text-amber-400";
-          }
-
-          if (contentMd && finalReportMarkdown !== contentMd) {
-            finalReportMarkdown = contentMd;
-            pane.innerHTML = marked.parse(contentMd);
-          }
-        })
-        .catch(err => console.error("Erro no polling:", err));
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     // Ações de Exportação
@@ -519,19 +680,15 @@
       if(!finalReportMarkdown) return;
       try {
         await navigator.clipboard.writeText(finalReportMarkdown);
-        alert("Markdown copiado para a área de clipboard!");
+        alert("Markdown copiado!");
       } catch (err) {
         const textArea = document.createElement("textarea");
         textArea.value = finalReportMarkdown;
         document.body.appendChild(textArea);
         textArea.select();
-        try {
-          document.execCommand('copy');
-          alert("Markdown copiado para a área de clipboard!");
-        } catch (err) {
-          alert("Não foi possível copiar automaticamente.");
-        }
+        document.execCommand('copy');
         document.body.removeChild(textArea);
+        alert("Markdown copiado!");
       }
     }
 
@@ -540,44 +697,13 @@
       const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `pesquisa_${currentTaskId}.md`;
-      link.click();
-    }
-
-    function downloadHTML() {
-      if(!finalReportMarkdown) return;
-      
-      const htmlBody = marked.parse(finalReportMarkdown);
-      const fullHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Pesquisa Gerada</title>
-        <style>
-          body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.6; color: #1f2937; max-width: 800px; margin: 0 auto; padding: 2rem; background: #f9fafb; }
-          h1, h2, h3 { color: #111827; }
-          a { color: #4f46e5; text-decoration: none; }
-          code { background: #e5e7eb; padding: 0.2rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-          pre code { background: none; padding: 0; }
-          pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 8px; overflow-x: auto; }
-          blockquote { border-left: 4px solid #9ca3af; margin-left: 0; padding-left: 1rem; color: #4b5563; font-style: italic; }
-        </style>
-      </head>
-      <body>
-        ${htmlBody}
-      </body>
-      </html>
-      `;
-
-      const blob = new Blob([fullHtml], { type: 'text/html' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `pesquisa_${currentTaskId}.html`;
+      link.download = `pesquisa_${currentTaskId || 'result'}.md`;
       link.click();
     }
 
     function downloadPDF() {
+      // Como agora usamos layout Grid, a impressão nativa do navegador (CTRL+P) lida muito bem com Grids!
+      // Os estilos de `@media print` farão apenas os cards e o conteúdo principal aparecerem.
       window.print();
     }
   </script>

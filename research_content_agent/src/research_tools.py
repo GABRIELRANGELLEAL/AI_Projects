@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 import os
 import re
 import time
+from urllib.parse import urlencode
 import tempfile
 import xml.etree.ElementTree as ET
 from io import BytesIO
@@ -37,13 +38,13 @@ def _build_session(
             "Connection": "keep-alive",
         }
     )
-    # Configura a estratégia de repetição: tenta até 5 vezes em caso de erros 429, 50x, etc.
+    # Não incluir 429: reintentar rate limit atrasa muito e parece “travamento” no notebook.
     retry = Retry(
         total=5,
         connect=5,
         read=5,
         backoff_factor=0.6, # Tempo de espera exponencial entre as tentativas
-        status_forcelist=(429, 500, 502, 503, 504),
+        status_forcelist=(500, 502, 503, 504),
         allowed_methods=frozenset(["GET", "HEAD"]),
         raise_on_redirect=False,
         raise_on_status=False,
@@ -56,6 +57,23 @@ def _build_session(
 
 # Inicializa uma sessão global para ser reutilizada pelas funções
 session = _build_session()
+
+
+def _arxiv_atom_get(url: str) -> requests.Response:
+    """
+    GET para a API Atom do arXiv **sem** o HTTPAdapter de retry da `session`.
+
+    `session.get` herdava retentativas longas (ex.: 429/503 com backoff) e dava a
+    impressão de ficar preso após \"Starting arXiv request...\" no Jupyter.
+
+    Usa uma ``Session`` nova com ``trust_env`` desligado por padrão (ignora
+    HTTP(S)_PROXY do Windows), pois proxy mal configurado costuma travar o notebook.
+    Para usar proxy do ambiente: defina ``ARXIV_USE_ENV_PROXY=1`` no .env.
+    """
+    s = requests.Session()
+    s.trust_env = os.getenv("ARXIV_USE_ENV_PROXY", "").lower() in ("1", "true", "yes")
+    s.headers.update(session.headers)
+    return s.get(url, timeout=(5, 30))
 
 
 # ----- Funções Utilitárias para Tratamento de PDFs e Textos -----
@@ -93,7 +111,7 @@ def clean_text(s: str) -> str:
     s = re.sub(r"\n{3,}", "\n\n", s)  # Evita mais de uma linha em branco seguida
     return s.strip()
 
-def fetch_pdf_bytes(pdf_url: str, timeout: int = 90) -> bytes:
+def fetch_pdf_bytes(pdf_url: str, timeout: int = 60) -> bytes:
     """
     Faz o download do PDF em formato de bytes usando a sessão configurada.
     """
@@ -139,51 +157,96 @@ def maybe_save_pdf(pdf_bytes: bytes, dest_dir: str, filename: str) -> str:
         f.write(pdf_bytes)
     return path
 
+########### ARXIV SESSION ###########
+def extract_arxiv_id(url_abs: str, remove_version: bool = True) -> str:
+    """
+    Extrai o arXiv ID da URL do artigo.
 
-# ----- Ferramenta de Pesquisa: arXiv -----
+    Ex:
+    http://arxiv.org/abs/1706.03762v7 -> 1706.03762
+    http://arxiv.org/abs/2501.02842   -> 2501.02842
+    """
+    if not url_abs:
+        return ""
+
+    arxiv_id = url_abs.rstrip("/").split("/abs/")[-1].strip()
+
+    if remove_version:
+        arxiv_id = re.sub(r"v\d+$", "", arxiv_id)
+
+    return arxiv_id
+
+
 def arxiv_search_tool(
     query: str,
     max_results: int = 3,
+    fetch_pdf: bool = False,
 ) -> List[Dict]:
     """
-    Busca artigos no arXiv. Retorna uma lista de dicionários onde a chave `summary`
-    é sobrescrita para conter o texto extraído diretamente do PDF do artigo.
+    Busca artigos no arXiv. Por padrão `summary` é o abstract do feed (rápido).
+    Com `fetch_pdf=True`, extrai texto do PDF (lento com muitos resultados).
     """
     # ===== FLAGS INTERNOS (Configurações da ferramenta) =====
-    _INCLUDE_PDF = True       # Controla se o PDF deve ser processado
-    _EXTRACT_TEXT = True      # Controla se o texto deve ser extraído do PDF
-    _MAX_PAGES = 6            # Limita a extração às primeiras N páginas (economiza tempo/tokens)
-    _TEXT_CHARS = 5000        # Limita o número de caracteres retornados do texto
-    _SAVE_FULL_TEXT = False   # Se True, ignora _TEXT_CHARS e salva o texto completo
-    _SLEEP_SECONDS = 1.0      # Pausa entre requisições para evitar rate limit do arXiv
-    # ==========================
+    _INCLUDE_PDF = True
+    _EXTRACT_TEXT = True
+    _MAX_PAGES = 6
+    _TEXT_CHARS = 5000
+    _SAVE_FULL_TEXT = False
+    _SLEEP_SECONDS = 0.25
+    # ================================================
 
-    # Constrói a URL da API do arXiv
-    api_url = (
-        "https://export.arxiv.org/api/query"
-        f"?search_query=all:{requests.utils.quote(query)}&start=0&max_results={max_results}"
+    # Constrói a URL da API do arXiv (query inteira precisa ser codificada; senão espaços,
+    # '&', '+' etc. quebram a URL ou alteram o sentido dos parâmetros.)
+    try:
+        mr = int(max_results)
+    except (TypeError, ValueError):
+        mr = 3
+    mr = max(1, min(mr, 30_000))
+    api_url = "https://export.arxiv.org/api/query?" + urlencode(
+        {"search_query": f"all:{query}", "start": 0, "max_results": mr}
     )
 
     out: List[Dict] = []
-    
+
     # Faz a requisição para a API
+    
     try:
-        resp = session.get(api_url, timeout=60)
+        print("Starting arXiv request...", flush=True)
+        resp = _arxiv_atom_get(api_url)
+        print(f"arXiv response: HTTP {resp.status_code}, {len(resp.content)} bytes", flush=True)
+        if resp.status_code == 429:
+            return [
+                {
+                    "error": (
+                        "arXiv rate limit (HTTP 429). Aguarde alguns minutos ou reduza "
+                        "max_results; o servidor limita requisições por IP."
+                    )
+                }
+            ]
         resp.raise_for_status()
     except requests.exceptions.RequestException as e:
         return [{"error": f"arXiv API request failed: {e}"}]
 
     # Analisa o XML retornado pelo arXiv
+    
     try:
+            
         root = ET.fromstring(resp.content)
-        ns = {"atom": "http://www.w3.org/2005/Atom"} # Namespace do feed Atom
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
 
-        for entry in root.findall("atom:entry", ns):
+        entries = root.findall("atom:entry", ns)
+        total = len(entries)
+
+        for i, entry in enumerate(entries, start=1):
+
+
             # Extrai metadados básicos
             title = (entry.findtext("atom:title", default="", namespaces=ns) or "").strip()
             published = (entry.findtext("atom:published", default="", namespaces=ns) or "")[:10]
             url_abs = entry.findtext("atom:id", default="", namespaces=ns) or ""
             abstract_summary = (entry.findtext("atom:summary", default="", namespaces=ns) or "").strip()
+
+            print(f"[{i}/{total}] Metadata Extract concluded")
 
             # Extrai autores
             authors = []
@@ -192,67 +255,84 @@ def arxiv_search_tool(
                 if nm:
                     authors.append(nm)
 
-            # Encontra o link direto para o PDF
+            # Encontra o link direto para o PDF (feed Atom do arXiv usa type=application/pdf)
             link_pdf = None
             for link in entry.findall("atom:link", ns):
+                href = link.attrib.get("href") or ""
                 if link.attrib.get("title") == "pdf":
-                    link_pdf = link.attrib.get("href")
+                    link_pdf = href
                     break
+                if link.attrib.get("type") == "application/pdf" and href:
+                    link_pdf = href
+                    break
+                if "/pdf/" in href and href.endswith(".pdf"):
+                    link_pdf = href
+                    break
+
             if not link_pdf and url_abs:
                 link_pdf = ensure_pdf_url(url_abs)
 
-            # Monta o dicionário de resultado para este artigo
+            # Monta o dicionário de resultado
             item = {
                 "title": title,
                 "authors": authors,
                 "published": published,
                 "url": url_abs,
-                "summary": abstract_summary, # Começa com o abstract, pode ser sobrescrito abaixo
-                "link_pdf": link_pdf,
+                "summary": abstract_summary,
+                "link_pdf": link_pdf
             }
 
             pdf_bytes = None
-            # Baixa o PDF se as flags permitirem e o link existir
-            if (_INCLUDE_PDF or _EXTRACT_TEXT) and link_pdf:
+
+            # Baixa o PDF se permitido (desligar para listagens rápidas só com metadados/resumo)
+            if fetch_pdf and (_INCLUDE_PDF or _EXTRACT_TEXT) and link_pdf:
                 try:
-                    pdf_bytes = fetch_pdf_bytes(link_pdf, timeout=90)
-                    time.sleep(_SLEEP_SECONDS) # Pausa educada entre downloads
+                    pdf_bytes = fetch_pdf_bytes(link_pdf, timeout=60)
+                    time.sleep(_SLEEP_SECONDS)
                 except Exception as e:
                     item["pdf_error"] = f"PDF fetch failed: {e}"
 
-            # Extrai o texto do PDF baixado
+            # Extrai texto do PDF
             if _EXTRACT_TEXT and pdf_bytes:
                 try:
                     text = pdf_bytes_to_text(pdf_bytes, max_pages=_MAX_PAGES)
                     text = clean_text(text) if text else ""
+
                     if text:
-                        # Substitui o `summary` (abstract) pelo texto real do PDF
                         if _SAVE_FULL_TEXT:
                             item["summary"] = text
                         else:
                             item["summary"] = text[:_TEXT_CHARS]
+
                 except Exception as e:
                     item["text_error"] = f"Text extraction failed: {e}"
 
             out.append(item)
-        return out
         
+        return out
+
     except ET.ParseError as e:
         return [{"error": f"arXiv API XML parse failed: {e}"}]
     except Exception as e:
         return [{"error": f"Unexpected error: {e}"}]
+
 
 # Definição do schema da ferramenta arXiv para consumo do LLM
 arxiv_tool_def = {
     "type": "function",
     "function": {
         "name": "arxiv_search_tool",
-        "description": "Searches arXiv and (internally) fetches PDFs to memory and extracts text.",
+        "description": "Searches arXiv. Returns metadata and abstract by default; fetch_pdf=true downloads PDFs (slower).",
         "parameters": {
             "type": "object",
             "properties": {
                 "query": {"type": "string", "description": "Search keywords."},
                 "max_results": {"type": "integer", "default": 3},
+                "fetch_pdf": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "If true, download PDFs and replace summary with extracted text.",
+                },
             },
             "required": ["query"],
         },
@@ -268,39 +348,32 @@ load_dotenv()  # Carrega as variáveis de ambiente de um arquivo .env
 def tavily_search_tool(
     query: str, max_results: int = 5, include_images: bool = False
 ) -> list[dict]:
-    """
-    Realiza uma pesquisa na web utilizando a API do Tavily (focada em IA).
-    
-    Args:
-        query (str): A consulta de pesquisa.
-        max_results (int): Número máximo de resultados.
-        include_images (bool): Se True, inclui links para imagens relevantes.
-    """
     api_key = os.getenv("TAVILY_API_KEY")
     if not api_key:
-        raise ValueError("TAVILY_API_KEY not found in environment variables.")
-
-    # Inicializa o cliente Tavily (suporta URL base customizada via DLAI_TAVILY_BASE_URL)
-    client = TavilyClient(api_key, api_base_url=os.getenv("DLAI_TAVILY_BASE_URL"))
+        return [{"error": "TAVILY_API_KEY not found in environment variables."}]
 
     try:
-        # Executa a pesquisa
+        base_url = os.getenv("DLAI_TAVILY_BASE_URL")
+        if base_url:
+            client = TavilyClient(api_key=api_key, api_base_url=base_url)
+        else:
+            client = TavilyClient(api_key=api_key)
+
         response = client.search(
-            query=query, max_results=max_results, include_images=include_images
+            query=query,
+            max_results=max_results,
+            include_images=include_images
         )
 
-        results = []
-        # Formata os resultados retornados
-        for r in response.get("results", []):
-            results.append(
-                {
-                    "title": r.get("title", ""),
-                    "content": r.get("content", ""),
-                    "url": r.get("url", ""),
-                }
-            )
+        results = [
+            {
+                "title": r.get("title", ""),
+                "content": r.get("content", ""),
+                "url": r.get("url", ""),
+            }
+            for r in response.get("results", [])
+        ]
 
-        # Adiciona imagens aos resultados se solicitado
         if include_images:
             for img_url in response.get("images", []):
                 results.append({"image_url": img_url})
@@ -308,7 +381,7 @@ def tavily_search_tool(
         return results
 
     except Exception as e:
-        return [{"error": str(e)}]  # Retorna o erro em formato amigável para o LLM
+        return [{"error": str(e)}]
 
 # Definição do schema da ferramenta Tavily
 tavily_tool_def = {

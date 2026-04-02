@@ -1,81 +1,73 @@
 """
-main.py — Fixed workflow research agent (FastAPI + Postgres)
-Correção: Adicionado "wikipedia" ao AllowedSource para evitar erro 422.
+main.py — Research Content Agent (FastAPI)
+
+Fluxo atual (1-shot):
+- frontend envia uma sentença
+- `key_word` extrai frases de busca
+- `arxiv_search_tool` busca artigos no arXiv
+- `research_agent` ranqueia/atribui scores aos artigos
+- backend retorna o JSON final para o frontend renderizar
 """
 
-import os
-import uuid
-import json
-import threading
-from datetime import datetime
-from typing import List, Literal
+# =========================
+# Imports padrão do Python
+# =========================
+from typing import Any
 
+# =========================
+# Imports do FastAPI
+# =========================
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+
+# =========================
+# Validação de payloads
+# =========================
 from pydantic import BaseModel, Field
 
-from sqlalchemy import create_engine, Column, Text, DateTime, String
-from sqlalchemy.orm import sessionmaker, declarative_base
-
+# =========================
+# Carrega variáveis do .env
+# =========================
 from dotenv import load_dotenv
 
-import html
-
-# Importação dos agentes
-from src.agents import writer_agent, editor_agent, research_agent
-
-
-# ============================================================
-# 1) Configuração do Banco de Dados
-# ============================================================
+# =========================
+# Importação dos agentes de IA
+# =========================
+# key_word: extrai palavras-chave do prompt
+# research_agent: rankeia/atribui score aos papers retornados
+# =========================
+from src.agents import key_word, research_agent
+from src.research_tools import arxiv_search_tool
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set")
-
-Base = declarative_base()
-engine = create_engine(DATABASE_URL, echo=False, future=True)
-SessionLocal = sessionmaker(bind=engine)
-
 
 # ============================================================
-# 2) Modelo ORM
+# Modelos (Pydantic) — fluxo simples
 # ============================================================
 
-class Task(Base):
-    __tablename__ = "tasks"
-    id = Column(String, primary_key=True, index=True)
-    prompt = Column(Text)
-    status = Column(String) 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow)
-    result = Column(Text)
-    sources = Column(Text)      
-
-
+class SimpleResearchRequest(BaseModel):
+    """
+    Payload esperado para o fluxo simples (1-shot):
+    - recebe uma sentença do frontend
+    - extrai keywords
+    - busca arXiv
+    - rankeia com research_agent
+    - retorna JSON final para o frontend renderizar
+    """
+    sentence: str = Field(..., min_length=3)
+    max_results: int = Field(10, ge=1, le=200)
+    fetch_pdf: bool = False
+    add_subjective: bool = True
 # ============================================================
-# 3) Setup DB
-# ============================================================
-try:
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"❌ DB setup failed: {e}")
-
-
-# ============================================================
-# 4) Inicialização do FastAPI
+# Inicialização do app FastAPI and routes
 # ============================================================
 
 app = FastAPI()
 
+# Libera CORS para qualquer origem
+# Isso facilita no desenvolvimento, mas em produção o ideal é restringir
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -83,184 +75,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Certifique-se de que as pastas static e templates existam
+# Expõe arquivos estáticos em /static
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Diretório de templates HTML
 templates = Jinja2Templates(directory="templates")
 
+# Creating endpoints
 
-# ============================================================
-# 5) Modelos Pydantic (CORREÇÃO AQUI)
-# ============================================================
-
-# Adicionado "wikipedia" para sincronizar com o index_v3.html
-AllowedSource = Literal["arxiv", "scielo", "wikipedia"]
-
-class ResearchRequest(BaseModel):
-    prompt: str = Field(..., min_length=3)
-    sources: List[AllowedSource] = Field(..., min_items=1)
-
-class ChatRequest(BaseModel):
-    message: str = Field(..., min_length=1)
-
-
-# ============================================================
-# 6) Endpoints
-# ============================================================
-
-@app.get("/api")
-def health_check():
-    return {"status": "ok"}
-
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 def read_root(request: Request):
-    return templates.TemplateResponse("index_v3.html", {"request": request})
+    """
+    Endpoint raiz.
+    Renderiza o frontend principal.
+    """
+    return templates.TemplateResponse(request=request, name="index_v3.html", context={"request": request})
 
-@app.post("/generate_report")
-def generate_report(req: ResearchRequest):
-    task_id = str(uuid.uuid4())
-    initial_result = {
-        "steps": [
-            {"name": "extracting informations", "status": "pending", "detail": ""},
-            {"name": "research agent", "status": "pending", "detail": ""},
-            {"name": "write agent", "status": "pending", "detail": ""},
-            {"name": "editor agent", "status": "pending", "detail": ""},
-        ],
-        "research_text": None,
-        "draft_markdown": None,
-        "article_markdown": None,
-        "chat": [],
-    }
+@app.post("/research")
+def research(req: SimpleResearchRequest) -> dict[str, Any]:
+    """
+    Fluxo simples solicitado:
+    sentence -> key_word -> arxiv_search_tool -> research_agent -> output
 
-    db = SessionLocal()
-    db.add(Task(
-        id=task_id,
-        prompt=req.prompt,
-        status="running",
-        sources=json.dumps(req.sources),
-        result=json.dumps(initial_result, ensure_ascii=False),
-    ))
-    db.commit()
-    db.close()
+    Retorna um JSON com:
+    - keywords: saída do key_word (inclui url_to_query)
+    - papers_raw: retorno da busca no arXiv
+    - papers_ranked: retorno do research_agent (scores + rank_score)
+    """
+    kw = key_word(prompt=req.sentence) or {}
+    url_to_query = (kw.get("url_to_query") or "").strip()
 
-    thread = threading.Thread(
-        target=run_pipeline,
-        args=(task_id, req.prompt, req.sources),
-        daemon=True,
+    if not url_to_query:
+        raise HTTPException(status_code=400, detail="key_word não retornou url_to_query.")
+
+    papers = arxiv_search_tool(url_to_query, max_results=req.max_results, fetch_pdf=req.fetch_pdf)
+
+    ranked = research_agent(
+        query=req.sentence,
+        papers=papers,
+        add_subjective=req.add_subjective,
     )
-    thread.start()
 
-    return {"task_id": task_id}
-
-@app.get("/tasks/{task_id}")
-def get_task(task_id: str):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    db.close()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
     return {
-        "id": task.id,
-        "status": task.status,
-        "prompt": task.prompt,
-        "result": json.loads(task.result) if task.result else {}
+        "sentence": req.sentence,
+        "keywords": kw,
+        "papers_raw": papers,
+        "papers_ranked": ranked,
     }
 
-@app.post("/tasks/{task_id}/cancel")
-def cancel_task(task_id: str):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if task and task.status == "running":
-        task.status = "cancelled"
-        db.commit()
-    db.close()
-    return {"status": "cancelled"}
-
-
-# ============================================================
-# 7) Helpers e Workflow
-# ============================================================
-
-def _update_step_in_db(task_id: str, step_name: str, status: str, detail: str = ""):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if task:
-        result = json.loads(task.result)
-        for step in result["steps"]:
-            if step["name"] == step_name:
-                step["status"] = status
-                if detail: step["detail"] = detail
-                break
-        task.result = json.dumps(result, ensure_ascii=False)
-        db.commit()
-    db.close()
-
-def _update_result_field(task_id: str, **fields):
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if task:
-        result = json.loads(task.result)
-        result.update(fields)
-        task.result = json.dumps(result, ensure_ascii=False)
-        db.commit()
-    db.close()
-
-def _is_cancelled(task_id: str) -> bool:
-    db = SessionLocal()
-    task = db.query(Task).filter(Task.id == task_id).first()
-    cancelled = task and task.status == "cancelled"
-    db.close()
-    return cancelled
-
-def run_pipeline(task_id: str, prompt: str, sources: List[str]):
-    try:
-        if _is_cancelled(task_id): return
-        
-        # Etapa 1
-        _update_step_in_db(task_id, "extracting informations", "running")
-        _update_step_in_db(task_id, "extracting informations", "done")
-
-        if _is_cancelled(task_id): return
-
-        # Etapa 2 - Research (CORREÇÃO: Usando o prompt estruturado)
-        _update_step_in_db(task_id, "research agent", "running")
-        
-        # Criamos uma instrução clara para o agente sobre as fontes
-        structured_research_prompt = f"Topic: {prompt}, Sources: {', '.join(sources)}"
-        
-        research_text, _ = research_agent(prompt=structured_research_prompt)
-        _update_result_field(task_id, research_text=research_text)
-        _update_step_in_db(task_id, "research agent", "done")
-
-        if _is_cancelled(task_id): return
-
-        # Etapa 3 - Writer
-        _update_step_in_db(task_id, "write agent", "running")
-        draft_md, _ = writer_agent(prompt=research_text)
-        _update_result_field(task_id, draft_markdown=draft_md)
-        _update_step_in_db(task_id, "write agent", "done")
-
-        if _is_cancelled(task_id): return
-
-        # Etapa 4 - Editor
-        _update_step_in_db(task_id, "editor agent", "running")
-        final_md, _ = editor_agent(prompt=draft_md)
-        _update_result_field(task_id, article_markdown=final_md)
-        _update_step_in_db(task_id, "editor agent", "done")
-
-        # Conclusão
-        db = SessionLocal()
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if task:
-            task.status = "done"
-            db.commit()
-        db.close()
-
-    except Exception as e:
-        print(f"Error: {e}")
-        _update_step_in_db(task_id, "editor agent", "error", str(e))
-        db = SessionLocal()
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if task:
-            task.status = "error"
-            db.commit()
-        db.close()
