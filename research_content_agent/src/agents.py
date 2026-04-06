@@ -17,7 +17,7 @@ def get_client():
 
 def key_word(
     prompt: str,
-    model: str = "openai:gpt-4.1-mini"
+    model: str = "openai:gpt-4o-mini"
     ):
     """
     Extracts academic search keywords and short search phrases from a research prompt.
@@ -108,10 +108,11 @@ def key_word(
             "url_to_query": " or ".join(search_phrases)
         }
     except Exception as e:
-        # If any error happens (API error, invalid JSON, etc.),
-        # print the error and return empty lists so the function
-        # does not break the rest of your pipeline.
         print("❌ Error:", e)
+        return {
+            "search_phrases": [],
+            "url_to_query": ""
+        }
 
 # === Research Agent ===
 def research_agent(
@@ -119,7 +120,7 @@ def research_agent(
     papers: list[dict],
     *,
     add_subjective: bool = True,
-    subjective_model: str = "openai:gpt-4.1-mini",
+    subjective_model: str = "openai:gpt-4o-mini",
     subjective_max_pages: int = 2,
     subjective_max_chars: int = 6000,
     ):
@@ -198,7 +199,7 @@ def research_agent(
     def _llm_subjective_relevance_score(
         paper: dict,
         *,
-        model: str = "openai:gpt-4.1-mini",
+        model: str = "openai:gpt-4o-mini",
         max_pages: int = 2,
         max_chars: int = 6000,
     ) -> dict:
@@ -355,7 +356,7 @@ def research_agent(
         out["score_similarity"] = round(score_similarity, 2)
         out["score_recency"] = round(score_recency, 2)
         out["score_quality"] = round(score_quality, 2)
-        out["score_subjective"] = float()
+        out["score_subjective"] = round(float(score_subj), 2)
         out["rationale"] = str(model_output_subjective_relevance.get("rationale", "")).strip()
         out["rank_score"] = round(rank_score, 2)
 
