@@ -134,7 +134,7 @@
                 <textarea 
                 id="promptInput" 
                 class="w-full bg-app-input border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-sm text-gray-900 dark:text-gray-200 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all min-h-[140px] resize-none placeholder-gray-400 dark:placeholder-gray-500 shadow-sm"
-                placeholder="Ex: Escreva um resumo sobre a correção de erros na computação quântica focando em topologia..."
+                placeholder="Ex: What are the latest advancements in quantum error correction focusing on topology?"
                 ></textarea>
             </div>
         </div>
@@ -251,7 +251,6 @@
 
     // Estado global
     let currentTaskId = null;
-    let finalReportMarkdown = "";
     let currentAbortController = null;
 
     // Componente de UI - Pipeline Steps
@@ -299,7 +298,7 @@
       if (statusStr === 'running') footer.textContent = 'Em andamento...';
       else if (statusStr === 'done') footer.textContent = 'Sucesso.';
       else if (statusStr === 'error') footer.textContent = 'Falha na execução.';
-      else footer.textContent = 'Aguardando...';
+      else if (statusStr === 'idle') footer.textContent = 'Aguardando...';
       
       lucide.createIcons();
     }
@@ -310,9 +309,9 @@
 
     // Prompts de Exemplo
     const samplePrompts = [
-      "Escreva um resumo sobre a correção de erros na computação quântica. Inclua benchmarks, métodos principais e problemas em aberto.",
-      "Crie um relatório acadêmico analisando o impacto dos modelos de difusão na geração de vídeos realistas.",
-      "Resuma os avanços de 2024 na tecnologia de LLMs multimodais focados em raciocínio matemático."
+      "What are the main methods, benchmarks, and open problems in quantum error correction?",
+      "How do diffusion models impact the generation of realistic videos in recent academic research?",
+      "What are the key advancements in 2024 for multimodal LLMs focused on mathematical reasoning?"
     ];
     let samplePromptIndex = 0;
     
@@ -506,10 +505,10 @@
       lucide.createIcons();
     }
 
-    // Submissão
-    function submitPrompt() {
+    // Submissão usando Fetch Stream para ler Server-Sent Events do Backend
+    async function submitPrompt() {
       const prompt = document.getElementById('promptInput').value.trim();
-      const maxResults = 10; // Removido do input, fixado em 10
+      const maxResults = 10;
       
       if (!prompt) {
         alert("Por favor, digite um assunto no campo de pesquisa.");
@@ -525,16 +524,15 @@
 
       disableUI(true);
 
+      // Estado inicial dos passos
       currentTaskId = `run_${Date.now().toString(36)}`;
+      let stepsState = defaultPipelineSteps.map(name => ({ name: name, status: 'pending' }));
+      renderPipeline(stepsState, currentTaskId, 'running');
       
-      // Animação dos passos do pipeline (simulada até que o backend responda)
-      const steps = defaultPipelineSteps.map((n, i) => ({ 
-        name: n, 
-        status: i === 0 ? 'running' : 'pending' 
-      }));
-      renderPipeline(steps, currentTaskId, 'running');
-
-      document.getElementById('articleBadge').textContent = 'Analisando dados...';
+      document.getElementById('articleBadge').textContent = 'Conectando ao agente...';
+      document.getElementById('pipelineFooter').textContent = 'Iniciando...';
+      
+      // Interface de Loading Principal
       document.getElementById('articlePane').innerHTML = `
         <div class="flex flex-col items-center justify-center h-[60vh] text-center">
             <div class="relative w-24 h-24 mb-8">
@@ -545,7 +543,7 @@
                 </div>
             </div>
             <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">Processamento Inteligente</h3>
-            <p class="text-gray-500 dark:text-gray-400 max-w-sm text-sm leading-relaxed">O agente está extraindo entidades, vasculhando a base do arXiv e passando os resultados pela IA para ranqueamento matemático e subjetivo. Isso pode levar alguns segundos.</p>
+            <p class="text-gray-500 dark:text-gray-400 max-w-sm text-sm leading-relaxed">Acompanhe o andamento no painel lateral. O agente está extraindo entidades, vasculhando a base do arXiv e passando os resultados pela IA para ranqueamento matemático e subjetivo.</p>
         </div>
       `;
       lucide.createIcons();
@@ -553,99 +551,111 @@
       if (currentAbortController) currentAbortController.abort();
       currentAbortController = new AbortController();
 
-      fetch(`${API_BASE_URL}/research`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: currentAbortController.signal
-      })
-      .then(async (res) => {
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || `HTTP ${res.status}`);
+      try {
+        // Agora apontamos para a rota /stream!
+        const response = await fetch(`${API_BASE_URL}/research/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: currentAbortController.signal
+        });
+
+        if (!response.ok) {
+          const txt = await response.text();
+          throw new Error(txt || `HTTP ${response.status}`);
         }
-        return res.json();
-      })
-      .then(data => {
-        currentAbortController = null;
-        disableUI(false);
 
-        renderPipeline(
-          defaultPipelineSteps.map(n => ({ name: n, status: 'done' })),
-          currentTaskId,
-          'done'
-        );
+        // Ler o stream gerado pelo backend
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
 
-        const badge = document.getElementById('statusBadgeSidebar');
-        badge.textContent = 'CONCLUÍDO';
-        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Dividir por "\n\n" (padrão SSE - Server Sent Events)
+          const chunks = buffer.split('\n\n');
+          buffer = chunks.pop(); // Mantém o último trecho (potencialmente incompleto) no buffer
 
-        document.getElementById('articleBadge').textContent = `${data.papers_ranked?.length || 0} artigos processados`;
+          for (const chunk of chunks) {
+            // Extrai o nome do evento e o dado em JSON
+            const eventMatch = chunk.match(/^event:\s*(.+)$/m);
+            const dataMatch = chunk.match(/^data:\s*(.+)$/m);
+            
+            if (eventMatch && dataMatch) {
+              const eventType = eventMatch[1].trim();
+              const dataObj = JSON.parse(dataMatch[1].trim());
 
-        // Renderiza as UI novas (Grid)
-        const ranked = data.papers_ranked || [];
-        renderResearchResults(data.sentence, data.keywords, ranked);
+              // LOGICA DE ATUALIZAÇÃO REATIVA
+              if (eventType === 'task') {
+                currentTaskId = dataObj.task_id;
+                renderPipeline(stepsState, currentTaskId, 'running');
+              } 
+              else if (eventType === 'progress') {
+                const idx = dataObj.step_index;
+                
+                // Marca os passos anteriores como "done"
+                for(let i = 0; i < idx; i++) {
+                  stepsState[i].status = 'done';
+                }
+                // Marca o passo atual como "running"
+                stepsState[idx].status = 'running';
+                
+                document.getElementById('pipelineFooter').textContent = dataObj.message || 'Processando...';
+                renderPipeline(stepsState, currentTaskId, 'running');
+              } 
+              else if (eventType === 'result') {
+                // Ao receber o resultado final, tudo fica "done"
+                stepsState.forEach(s => s.status = 'done');
+                renderPipeline(stepsState, currentTaskId, 'done');
+                
+                const badge = document.getElementById('statusBadgeSidebar');
+                badge.textContent = 'CONCLUÍDO';
+                badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 px-2 py-0.5 rounded';
 
-        // Prepara exportação
-        finalReportMarkdown = buildResultsMarkdown(data);
-      })
-      .catch((err) => {
-        console.error(err);
-        currentAbortController = null;
-        disableUI(false);
+                document.getElementById('articleBadge').textContent = `${dataObj.papers_ranked?.length || 0} artigos processados`;
+
+                const ranked = dataObj.papers_ranked || [];
+                renderResearchResults(dataObj.sentence, dataObj.keywords, ranked);
+              } 
+              else if (eventType === 'error') {
+                throw new Error(dataObj.message);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Erro na leitura do fluxo:", err);
         
-        const badge = document.getElementById('statusBadgeSidebar');
-        badge.textContent = 'ERRO';
-        badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded';
-        
-        renderPipeline(
-          defaultPipelineSteps.map(n => ({ name: n, status: 'error' })),
-          currentTaskId,
-          'error'
-        );
-        
-        if (err && err.name === 'AbortError') {
+        if (err.name === 'AbortError') {
           document.getElementById('articlePane').innerHTML = `<div class="p-8 text-center text-amber-500 font-bold">Operação cancelada pelo usuário.</div>`;
+          document.getElementById('pipelineFooter').textContent = 'Cancelado.';
         } else {
+          // Marca passos que estavam rodando como com erro
+          stepsState.forEach(s => { if(s.status === 'running') s.status = 'error'; });
+          renderPipeline(stepsState, currentTaskId, 'error');
+          document.getElementById('pipelineFooter').textContent = 'Falha na execução.';
+
+          const badge = document.getElementById('statusBadgeSidebar');
+          badge.textContent = 'ERRO';
+          badge.className = 'text-[10px] uppercase tracking-wider font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded';
+
           document.getElementById('articlePane').innerHTML = `
             <div class="p-8 text-center border-2 border-dashed border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 rounded-2xl max-w-2xl mx-auto mt-10">
                 <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
                 <h3 class="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Erro ao executar a pesquisa</h3>
-                <p class="text-sm text-red-600 dark:text-red-300 opacity-80">${err.message || 'Verifique se o backend (FastAPI) está rodando no porto correto.'}</p>
+                <p class="text-sm text-red-600 dark:text-red-300 opacity-80">${err.message || 'Verifique se o backend (FastAPI) está rodando na porta correta.'}</p>
             </div>
           `;
           lucide.createIcons();
         }
-      });
-    }
-
-    // Markdown Builder
-    function buildResultsMarkdown(data) {
-      const sentence = (data && data.sentence) ? data.sentence : '';
-      const kw = (data && data.keywords) ? data.keywords : {};
-      const phrases = Array.isArray(kw.search_phrases) ? kw.search_phrases : [];
-      const papers = Array.isArray(data.papers_ranked) ? [...data.papers_ranked] : [];
-
-      let md = `# Resultados de Pesquisa (Agente IA)\n\n`;
-      md += `**Prompt:** ${sentence}\n\n`;
-      if (phrases.length) {
-        md += `**Palavras-chave utilizadas:** ${phrases.join(', ')}\n\n`;
+      } finally {
+        currentAbortController = null;
+        disableUI(false);
       }
-
-      md += `## Artigos Ranqueados\n\n`;
-      papers.forEach((p, idx) => {
-        md += `### ${idx + 1}. ${p.title || p.error || 'Paper'}\n\n`;
-        md += `**Score Geral:** ${Number(p.rank_score).toFixed(2)} (Sim: ${Number(p.score_similarity).toFixed(2)} | Rec: ${Number(p.score_recency).toFixed(2)} | Qual: ${Number(p.score_quality).toFixed(2)} | Subj: ${Number(p.score_subjective).toFixed(2)})\n\n`;
-        
-        if (p.authors) md += `- **Autores:** ${p.authors.join(', ')}\n`;
-        if (p.published) md += `- **Data:** ${new Date(p.published).toLocaleDateString()}\n`;
-        if (p.url) md += `- **URL:** ${p.url}\n\n`;
-        
-        if (p.rationale) md += `> **Análise IA:** *${p.rationale}*\n\n`;
-        if (p.summary) md += `**Resumo:** ${p.summary}\n\n`;
-        md += `---\n\n`;
-      });
-      return md.trim();
     }
 
     function escapeHtml(text) {
@@ -653,38 +663,6 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
-    }
-
-    // Ações de Exportação
-    async function copyMD() {
-      if(!finalReportMarkdown) return;
-      try {
-        await navigator.clipboard.writeText(finalReportMarkdown);
-        alert("Markdown copiado!");
-      } catch (err) {
-        const textArea = document.createElement("textarea");
-        textArea.value = finalReportMarkdown;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert("Markdown copiado!");
-      }
-    }
-
-    function downloadMarkdown() {
-      if(!finalReportMarkdown) return;
-      const blob = new Blob([finalReportMarkdown], { type: 'text/markdown' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `pesquisa_${currentTaskId || 'result'}.md`;
-      link.click();
-    }
-
-    function downloadPDF() {
-      // Como agora usamos layout Grid, a impressão nativa do navegador (CTRL+P) lida muito bem com Grids!
-      // Os estilos de `@media print` farão apenas os cards e o conteúdo principal aparecerem.
-      window.print();
     }
   </script>
 </body>
