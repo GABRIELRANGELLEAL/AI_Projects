@@ -1,6 +1,7 @@
 from datetime import datetime
 from urllib import response
 import json
+import os
 from aisuite import Client
 from sqlalchemy.sql import true
 from src.research_tools import (
@@ -9,12 +10,15 @@ from src.research_tools import (
     wikipedia_search_tool,
 )
 
-client = Client()
+def get_client():
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY not found in environment variables")
+    return Client()
 
 def key_word(
     prompt: str,
     model: str = "openai:gpt-4.1-mini"
-):
+    ):
     """
     Extracts academic search keywords and short search phrases from a research prompt.
 
@@ -26,6 +30,7 @@ def key_word(
             "search_phrases": [...]
         }
     """
+    client = get_client()
 
     # Prints a simple header in the console so you can easily identify
     # when this function starts running
@@ -113,11 +118,11 @@ def research_agent(
     query: str,
     papers: list[dict],
     *,
-    add_subjective: bool = true,
+    add_subjective: bool = True,
     subjective_model: str = "openai:gpt-4.1-mini",
     subjective_max_pages: int = 2,
     subjective_max_chars: int = 6000,
-):
+    ):
     """
     Rank arXiv papers.
 
@@ -130,6 +135,7 @@ def research_agent(
     - score_recency: newer papers score higher, based on `published` date
     - score_quality: metadata/abstract quality & completeness heuristic
     """
+    client = get_client()
 
     print("==================================")
     print("Paper Ranking Agent (research_agent)")

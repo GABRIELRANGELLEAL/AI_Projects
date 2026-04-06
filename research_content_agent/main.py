@@ -16,7 +16,7 @@ from typing import Any
 import json
 import time
 import uuid
-
+import os
 # =========================
 # Imports do FastAPI
 # =========================
@@ -32,10 +32,15 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 # =========================
-# Carrega variáveis do .env
+# env key
 # =========================
+
 from dotenv import load_dotenv
 
+load_dotenv()
+
+from src.agents import key_word, research_agent
+from src.research_tools import arxiv_search_tool
 # =========================
 # Importação dos agentes de IA
 # =========================
@@ -44,8 +49,6 @@ from dotenv import load_dotenv
 # =========================
 from src.agents import key_word, research_agent
 from src.research_tools import arxiv_search_tool
-
-load_dotenv()
 
 # ============================================================
 # Modelos (Pydantic) — fluxo simples
