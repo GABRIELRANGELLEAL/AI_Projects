@@ -1,8 +1,22 @@
-# 🔬 ArXiv Research Agent
+# Research Content Agent
 
-An agentic pipeline that takes a natural language research query, searches arXiv for relevant papers, and ranks them using a multi-criteria AI scoring system — served via a FastAPI backend with a real-time streaming interface.
+![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/-FastAPI-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/-PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![OpenAI](https://img.shields.io/badge/-OpenAI-412991?logo=openai&logoColor=white)
+![LLM](https://img.shields.io/badge/-LLM%20Agents-6366F1)
+![arXiv](https://img.shields.io/badge/-arXiv-B31B1B?logo=arxiv&logoColor=white)
+
+
+> **AI-powered research pipeline** that automatically searches, analyzes, and ranks scientific papers using LLM agents.
 
 ---
+
+<div align="center">
+
+**AI Research Pipeline • FastAPI Backend • Streaming UI • LLM Ranking**
+
+</div>
 
 ## 🧠 How It Works
 
