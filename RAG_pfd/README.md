@@ -2,8 +2,6 @@
 
 A system that lets users upload PDF documents and ask questions about their contents. It extracts text, indexes it with embeddings, and uses an LLM to generate answers grounded in the documents.
 
-Built as a technical challenge for **Tractian**.
-
 ## Tech Stack
 
 - **Backend:** FastAPI + Python 3.12
