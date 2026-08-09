@@ -2,6 +2,12 @@
 
 A system that lets users upload PDF documents and ask questions about their contents. It extracts text, indexes it with embeddings, and uses an LLM to generate answers grounded in the documents.
 
+## Try the website
+- https://cases-t53y.onrender.com/
+- put your api-key
+- upload your pdfs
+- start to mande your questions
+
 ## Tech Stack
 
 - **Backend:** FastAPI + Python 3.12
